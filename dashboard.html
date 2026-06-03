@@ -1,0 +1,2318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IFOND AGENT — BASE CHAIN</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:      #07090f;
+      --panel:   #0d1220;
+      --panel2:  #111927;
+      --border:  #1a3050;
+      --border2: #0f1e35;
+      --cyan:    #00d4ff;
+      --green:   #00ff88;
+      --amber:   #ffcc00;
+      --red:     #ff4466;
+      --purple:  #a78bfa;
+      --gold:    #ffd700;
+      --text:    #ffffff;
+      --muted:   #3d5470;
+      --px:      'Press Start 2P', monospace;
+      --mono:    'Share Tech Mono', monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      min-height: 100vh;
+      padding: 14px;
+      background-image:
+        radial-gradient(ellipse at 15% 40%, rgba(0,100,255,.06) 0%, transparent 55%),
+        radial-gradient(ellipse at 85% 15%, rgba(0,212,255,.04) 0%, transparent 55%);
+    }
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,.04) 3px, rgba(0,0,0,.04) 4px);
+      pointer-events: none; z-index: 9999;
+    }
+
+    /* ── Header ── */
+    .hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px; margin-bottom: 12px;
+      background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
+    }
+    .hdr-left { display: flex; align-items: center; gap: 12px; }
+    .hdr-title { font-family: var(--px); font-size: 10px; color: var(--cyan); letter-spacing: .08em; }
+    .hdr-sub   { font-size: 13px; color: var(--muted); }
+    .hdr-right { display: flex; align-items: center; gap: 14px; }
+    .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--green); margin-right: 6px; animation: pulse 2s ease-in-out infinite; }
+
+    .refresh-wrap { display: flex; align-items: center; gap: 8px; }
+    .countdown { font-size: 11px; color: var(--muted); min-width: 32px; text-align: right; }
+    .btn-refresh {
+      font-family: var(--mono); font-size: 11px; color: var(--cyan);
+      background: transparent; border: 1px solid var(--border); border-radius: 4px;
+      padding: 4px 10px; cursor: pointer; transition: all .15s;
+    }
+    .btn-refresh:hover { background: rgba(0,212,255,.08); border-color: var(--cyan); }
+
+    /* ── Wallet tabs ── */
+    .wallet-tabs {
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    }
+    .w-tab {
+      font-family: var(--mono); font-size: 11px;
+      background: transparent; border: 1px solid var(--border);
+      border-radius: 4px; padding: 4px 12px; cursor: pointer;
+      color: var(--muted); transition: all .15s;
+    }
+    .w-tab:hover { border-color: var(--cyan); color: var(--text); }
+    .w-tab.active {
+      border-color: var(--cyan); color: var(--cyan);
+      background: rgba(0,212,255,.08);
+      box-shadow: 0 0 6px rgba(0,212,255,.25);
+    }
+
+    /* ── Grid layouts ── */
+    .top-grid {
+      display: grid; grid-template-columns: 220px 240px 1fr;
+      gap: 12px; margin-bottom: 12px;
+    }
+
+    /* ── Panel base ── */
+    .panel {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+      padding: 14px; overflow: hidden;
+    }
+    .panel-title {
+      font-family: var(--px); font-size: 8px; color: var(--cyan);
+      letter-spacing: .1em; margin-bottom: 12px; padding-bottom: 8px;
+      border-bottom: 1px solid var(--border2);
+    }
+    .panel-title span { font-family: var(--mono); font-size: 13px; color: var(--muted); margin-left: 8px; }
+
+    /* ── Character panel ── */
+    .char-panel {
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+      position: relative;
+    }
+    .sprite-wrap {
+      position: relative; display: flex; align-items: center; justify-content: center;
+      width: 100%; padding: 4px;
+      animation: typing-bob 4s ease-in-out infinite;
+    }
+    #sprite { image-rendering: pixelated; image-rendering: crisp-edges; width: 100%; height: auto; display: block; }
+    .laser-glow { display: none; }
+    .wallet-card {
+      width: 100%; background: var(--panel2); border: 1px solid var(--border2); border-radius: 6px;
+      padding: 10px 12px; font-size: 11px;
+    }
+    .wallet-addr {
+      color: var(--muted); font-size: 11px; margin-bottom: 8px;
+      word-break: break-all; text-align: center;
+    }
+    .bal-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
+    .bal-label { color: var(--muted); }
+    .bal-val   { color: var(--cyan); font-weight: bold; }
+    .bal-total { border-top: 1px solid var(--border2); margin-top: 4px; padding-top: 4px; }
+    .bal-total .bal-label { color: var(--text); }
+    .bal-total .bal-val   { color: var(--gold); }
+    .bal-error { color: var(--red); font-size: 10px; text-align: center; }
+
+    /* ── Health panel ── */
+    .health-grid {
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .health-row {
+      background: var(--panel2); border: 1px solid var(--border2); border-radius: 5px;
+      padding: 8px 12px;
+    }
+    .health-row-top {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;
+    }
+    .health-platform { font-size: 13px; color: var(--text); }
+    .health-right    { display: flex; align-items: center; gap: 10px; }
+    .health-val      { font-size: 12px; font-weight: bold; min-width: 40px; text-align: right; }
+    .badge { font-family: var(--px); font-size: 7px; padding: 2px 6px; border-radius: 3px; letter-spacing: .05em; }
+    .badge-ok       { background: rgba(0,255,136,.15); color: var(--green);  border: 1px solid rgba(0,255,136,.3); }
+    .badge-warn     { background: rgba(255,204,0,.15);  color: var(--amber);  border: 1px solid rgba(255,204,0,.3); }
+    .badge-critical { background: rgba(255,68,102,.2);  color: var(--red);    border: 1px solid rgba(255,68,102,.4); }
+    .badge-error    { background: rgba(255,68,102,.2);  color: var(--red);    border: 1px solid rgba(255,68,102,.4); }
+
+    .health-bar-bg { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .health-bar    { height: 100%; border-radius: 3px; transition: width .5s ease; }
+    .bar-ok       { background: linear-gradient(90deg, #00c46a, var(--green)); }
+    .bar-warn     { background: linear-gradient(90deg, #cc8800, var(--amber)); }
+    .bar-critical { background: linear-gradient(90deg, #cc1133, var(--red)); }
+    .bar-error    { background: var(--red); }
+
+    .health-empty { color: var(--muted); font-size: 11px; text-align: center; padding: 20px; }
+    .health-cache-note { font-size: 10px; color: var(--muted); margin-top: 10px; text-align: right; }
+
+    /* ── Protocol Summary Bar ── */
+    .proto-bar { display:flex; flex-wrap:wrap; gap:8px; padding:10px 0 14px; }
+    .proto-card {
+      display:flex; align-items:center; gap:8px;
+      padding:8px 12px; border-radius:10px;
+      border:1.5px solid var(--border2);
+      background:rgba(255,255,255,.03);
+      min-width:120px; cursor:default;
+      transition:opacity .25s, border-color .25s, box-shadow .25s;
+    }
+    .proto-card.proto-active  { background:rgba(255,255,255,.06); }
+    .proto-card.proto-inactive { opacity:.22; filter:grayscale(.6); }
+    .proto-card-info { display:flex; flex-direction:column; gap:2px; min-width:0; }
+    .proto-card-name { font-size:11px; font-weight:600; color:var(--text); letter-spacing:.02em; }
+    .proto-card-stats { font-size:10px; color:var(--muted); }
+    .proto-card-usd  { font-size:11px; font-weight:600; color:var(--green); }
+
+    /* ── Positions table ── */
+    .positions-panel { margin-bottom: 12px; }
+    .positions-wrap  { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th {
+      text-align: left; padding: 7px 10px;
+      font-family: var(--px); font-size: 7px; color: var(--muted);
+      border-bottom: 1px solid var(--border); letter-spacing: .06em;
+      cursor: pointer; user-select: none; white-space: nowrap;
+    }
+    thead th:hover { color: var(--cyan); }
+    thead th.sort-asc::after  { content: ' ↑'; color: var(--cyan); }
+    thead th.sort-desc::after { content: ' ↓'; color: var(--cyan); }
+    tbody tr { border-bottom: 1px solid var(--border2); }
+    tbody tr:hover { background: rgba(255,255,255,.025); }
+    tbody td { padding: 8px 10px; vertical-align: middle; }
+    tfoot td { padding: 7px 10px; border-top: 1px solid var(--border); font-family: var(--px); font-size: 7px; color: var(--muted); letter-spacing: .06em; }
+    .td-id       { color: var(--muted); width: 36px; }
+    .td-name     { color: var(--text); }
+    .td-protocol { color: var(--muted); font-size: 11px; }
+    .td-type  { }
+    .td-token { color: var(--cyan); }
+    .td-usd   { color: var(--gold); text-align: right; }
+    .td-days  { text-align: right; }
+    .td-tx    { color: var(--muted); font-size: 12px; }
+    .days-ok   { color: var(--green); }
+    .days-warn { color: var(--amber); }
+    .days-over { color: var(--red); }
+    .type-pill {
+      font-family: var(--px); font-size: 7px; padding: 2px 6px; border-radius: 3px;
+    }
+    .pill-lend   { background: rgba(0,212,255,.12);   color: var(--cyan);   border: 1px solid rgba(0,212,255,.25); }
+    .pill-borrow { background: rgba(167,139,250,.12); color: var(--purple); border: 1px solid rgba(167,139,250,.3); }
+    .pill-lp     { background: rgba(255,204,0,.12);   color: var(--amber);  border: 1px solid rgba(255,204,0,.25); }
+    .pill-vote   { background: rgba(34,197,94,.12);   color: #22c55e;       border: 1px solid rgba(34,197,94,.3); }
+    .pill-locked { background: rgba(255,59,59,.15);   color: #ff3b3b;       border: 1px solid rgba(255,59,59,.35);
+                   font-size: 9px; padding: 1px 5px; border-radius: 3px; margin-left: 5px;
+                   letter-spacing: .4px; font-weight: 700; vertical-align: middle; }
+    .td-proto-cell { display: flex; align-items: center; gap: 5px; }
+    .td-token-cell { display: flex; align-items: center; gap: 4px; }
+    .logo-pair     { display: inline-flex; align-items: center; }
+    .logo-pair img:first-child { position: relative; z-index: 2; margin-right: -5px; border: 1px solid var(--bg); border-radius: 50%; }
+    .logo-pair img:last-child  { position: relative; z-index: 1; }
+    .logo-abbr { display: inline-flex; align-items: center; justify-content: center;
+                 width: 18px; height: 18px; border-radius: 50%; background: var(--border);
+                 font-size: 8px; color: var(--muted); font-weight: bold; }
+    .pos-empty   { text-align: center; color: var(--muted); padding: 24px; font-size: 11px; }
+    .tx-link     { color: var(--muted); text-decoration: none; }
+    .tx-link:hover { color: var(--cyan); }
+
+    /* ── Stats panel ── */
+    .stat-card {
+      background: var(--panel2); border: 1px solid var(--border2); border-radius: 5px;
+      padding: 9px 12px; margin-bottom: 8px;
+    }
+    .stat-label { font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+    .stat-val   { font-size: 18px; color: var(--cyan); font-weight: bold; }
+
+    /* ── Type count grid ── */
+    .type-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px;
+    }
+    .type-card {
+      background: var(--panel2); border: 1px solid var(--border2); border-radius: 5px;
+      padding: 8px 10px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    }
+    .type-card-label { font-family: var(--px); font-size: 6px; color: var(--muted); letter-spacing:.06em; }
+    .type-card-val   { font-size: 20px; font-weight: bold; color: var(--cyan); }
+    .stat-val.gold   { color: var(--gold); }
+    .stat-val.green  { color: var(--green); }
+
+    /* ── Briefing card ── */
+    .brf-label   { font-family: var(--px); font-size: 7px; color: var(--muted); letter-spacing:.08em; margin-bottom: 10px; }
+    .brf-row     { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+    .brf-key     { color: var(--muted); }
+    .brf-val     { color: var(--cyan); }
+    .brf-val.gold { color: var(--gold); }
+    .brf-val.green { color: var(--green); }
+    .brf-val.red   { color: var(--red); }
+    .sched-row   { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 13px; border-bottom: 1px solid var(--border2); }
+    .sched-row:last-child { border-bottom: none; }
+    .sched-tick  { font-size: 12px; min-width: 16px; }
+    .sched-time  { color: var(--gold); min-width: 120px; font-size: 12px; }
+    .sched-event { color: var(--text); }
+    .warn-banner {
+      background: rgba(255,204,0,.08); border: 1px solid rgba(255,204,0,.3);
+      border-radius: 5px; padding: 7px 12px; margin-bottom: 12px;
+    }
+    .warn-row    { display: flex; align-items: center; gap: 6px; padding: 3px 0; font-size: 12px; color: var(--amber); }
+
+    /* ── History ── */
+    .history-panel { margin-bottom: 12px; }
+    .hist-entry {
+      display: flex; align-items: center; gap: 12px;
+      padding: 7px 10px; border-bottom: 1px solid var(--border2); font-size: 13px;
+    }
+    .hist-entry:last-child { border-bottom: none; }
+    .hist-date    { color: var(--muted); font-size: 11px; min-width: 70px; }
+    .hist-name    { color: var(--text); flex: 1; }
+    .hist-token   { color: var(--cyan); min-width: 60px; }
+    .hist-usd     { color: var(--gold); min-width: 50px; text-align: right; }
+    .hist-empty   { color: var(--muted); font-size: 13px; padding: 20px; text-align: center; }
+
+    /* ── Logs 2-column grid ── */
+    .logs-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 12px; margin-bottom: 12px;
+    }
+    .log-panel { overflow: hidden; }
+    .log-scroll { max-height: 340px; overflow-y: auto; }
+
+    /* ── Action log ── */
+    .action-entry {
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 7px 10px; border-bottom: 1px solid var(--border2);
+      font-size: 13px;
+    }
+    .action-entry:last-child { border-bottom: none; }
+    .action-ts       { color: var(--muted); min-width: 60px; font-size: 12px; flex-shrink: 0; }
+    .action-step-ok  { font-family:var(--px); font-size:6px; padding:2px 5px; border-radius:3px; background:rgba(0,255,136,.15); color:var(--green); border:1px solid rgba(0,255,136,.4); white-space:nowrap; flex-shrink:0; }
+    .action-step-fail{ font-family:var(--px); font-size:6px; padding:2px 5px; border-radius:3px; background:rgba(255,68,102,.15); color:var(--red);   border:1px solid rgba(255,68,102,.4); white-space:nowrap; flex-shrink:0; }
+    .action-step-mid { font-family:var(--px); font-size:6px; padding:2px 5px; border-radius:3px; background:rgba(255,204,0,.12);  color:var(--amber); border:1px solid rgba(255,204,0,.3);  white-space:nowrap; flex-shrink:0; }
+    .action-step-rec { font-family:var(--px); font-size:6px; padding:2px 5px; border-radius:3px; background:rgba(255,68,102,.08); color:#ff8888;      border:1px solid rgba(255,68,102,.3); white-space:nowrap; flex-shrink:0; }
+    .action-step-cyan{ font-family:var(--px); font-size:6px; padding:2px 5px; border-radius:3px; background:rgba(0,212,255,.12);  color:var(--cyan);  border:1px solid rgba(0,212,255,.3);  white-space:nowrap; flex-shrink:0; }
+    .action-step-borrow{ font-family:var(--px); font-size:6px; padding:2px 5px; border-radius:3px; background:rgba(255,68,102,.1); color:#ff6680;   border:1px solid rgba(255,68,102,.35);white-space:nowrap; flex-shrink:0; }
+    .action-step-sub { font-family:var(--px); font-size:6px; padding:2px 4px; border-radius:3px; background:rgba(100,140,180,.1);  color:var(--muted); border:1px solid rgba(100,140,180,.2); white-space:nowrap; flex-shrink:0; }
+    .action-step-purple { font-family:var(--px); font-size:6px; padding:2px 5px; border-radius:3px; background:rgba(180,100,255,.12); color:#c080ff; border:1px solid rgba(180,100,255,.3); white-space:nowrap; flex-shrink:0; }
+    .action-body     { flex: 1; min-width: 0; }
+    .action-platform { color: var(--cyan); font-size: 12px; }
+    .action-detail   { color: var(--text); font-size: 12px; word-break: break-all; }
+    .action-txhash   { color: var(--muted); font-size: 11px; }
+    .action-empty    { color: var(--muted); font-size: 13px; padding: 16px; text-align: center; }
+
+    /* ── The Rule log ── */
+    .rule-entry {
+      display: flex; align-items: center; gap: 10px;
+      padding: 7px 10px; border-bottom: 1px solid var(--border2);
+      font-size: 13px;
+    }
+    .rule-entry:last-child { border-bottom: none; }
+    .rule-ts      { color: var(--muted); min-width: 60px; font-size: 12px; }
+    .rule-icon    { min-width: 18px; text-align: center; font-size: 14px; }
+    .rule-attempt { color: var(--muted); font-size: 12px; min-width: 24px; }
+    .rule-platform{ min-width: 160px; }
+    .rule-orig    { color: var(--muted); font-size: 12px; }
+    .rule-reason  { color: var(--amber); font-size: 12px; flex: 1; }
+    .rule-outcome { font-family: var(--px); font-size: 7px; padding: 2px 6px; border-radius: 3px; white-space: nowrap; }
+    .outcome-executed { background:rgba(0,255,136,.12); color:var(--green);  border:1px solid rgba(0,255,136,.3); }
+    .outcome-replaced { background:rgba(0,212,255,.12); color:var(--cyan);   border:1px solid rgba(0,212,255,.3); }
+    .outcome-skipped  { background:rgba(255,68,102,.12); color:var(--red);   border:1px solid rgba(255,68,102,.3); }
+    .rule-empty   { color: var(--muted); font-size: 13px; padding: 16px; text-align: center; }
+
+    /* ── Sweep + Emergency ── */
+    .emergency-panel {
+      display: flex; justify-content: center; align-items: center; gap: 16px; padding: 10px 0;
+    }
+    .btn-sweep {
+      font-family: var(--px); font-size: 8px; letter-spacing: .08em;
+      color: var(--cyan); background: rgba(0,212,255,.08);
+      border: 1px solid rgba(0,212,255,.4); border-radius: 6px;
+      padding: 10px 24px; cursor: pointer; transition: all .2s;
+    }
+    .btn-sweep:hover { background: rgba(0,212,255,.18); border-color: var(--cyan); box-shadow: 0 0 16px rgba(0,212,255,.2); }
+    .btn-sweep:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-dust {
+      font-family: var(--px); font-size: 8px; letter-spacing: .08em;
+      color: #ff9944; background: rgba(255,153,68,.08);
+      border: 1px solid rgba(255,153,68,.4); border-radius: 6px;
+      padding: 10px 20px; cursor: pointer; transition: all .2s;
+      position: relative;
+    }
+    .btn-dust:hover { background: rgba(255,153,68,.18); border-color: #ff9944; }
+    .btn-dust:disabled { opacity: .4; cursor: not-allowed; }
+    .dust-badge {
+      position: absolute; top: -6px; right: -6px;
+      background: #ff4444; color: #fff; font-size: 9px;
+      border-radius: 50%; width: 16px; height: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--mono); line-height: 1;
+    }
+    .btn-emergency {
+      font-family: var(--px); font-size: 8px; letter-spacing: .08em;
+      color: var(--red); background: rgba(255,68,102,.08);
+      border: 1px solid rgba(255,68,102,.4); border-radius: 6px;
+      padding: 10px 28px; cursor: pointer; transition: all .2s;
+    }
+    .btn-emergency:hover {
+      background: rgba(255,68,102,.18); border-color: var(--red);
+      box-shadow: 0 0 16px rgba(255,68,102,.25);
+    }
+    .btn-withdraw-pos {
+      font-family: var(--px); font-size: 6px; letter-spacing: .04em;
+      color: var(--amber); background: rgba(255,204,0,.08);
+      border: 1px solid rgba(255,204,0,.35); border-radius: 3px;
+      padding: 3px 8px; cursor: pointer; transition: all .15s; white-space: nowrap;
+    }
+    .btn-withdraw-pos:hover { background: rgba(255,204,0,.2); border-color: var(--amber); }
+    .btn-withdraw-pos:disabled { opacity: .35; cursor: not-allowed; }
+    .btn-settings {
+      background: rgba(167,139,250,.1); color: var(--purple);
+      border: 1px solid rgba(167,139,250,.4); border-radius: 4px;
+      padding: 6px 12px; font-family: var(--mono); font-size: 11px;
+      cursor: pointer; transition: all .2s;
+    }
+    .btn-settings:hover { background: rgba(167,139,250,.2); border-color: var(--purple); }
+    /* Settings modal form */
+    .settings-section { margin-bottom: 18px; }
+    .settings-section-title {
+      font-size: 9px; color: var(--cyan); letter-spacing: 1px;
+      text-transform: uppercase; margin-bottom: 8px;
+      border-bottom: 1px solid var(--border2); padding-bottom: 4px;
+    }
+    .settings-row {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 6px; font-size: 11px;
+    }
+    .settings-label { color: var(--muted); min-width: 80px; font-size: 10px; }
+    .settings-input {
+      background: var(--bg); border: 1px solid var(--border);
+      color: var(--text); border-radius: 3px;
+      padding: 4px 7px; font-family: var(--mono); font-size: 11px;
+      width: 72px; text-align: right;
+    }
+    .settings-input:focus { outline: none; border-color: var(--cyan); }
+    .settings-input.err { border-color: var(--red); }
+    .settings-unit { color: var(--muted); font-size: 10px; min-width: 36px; }
+    .settings-weight-sum {
+      font-size: 10px; margin-top: 4px;
+      color: var(--muted);
+    }
+    .settings-weight-sum.ok  { color: var(--green); }
+    .settings-weight-sum.bad { color: var(--red); }
+    .settings-tier-head {
+      display: flex; gap: 8px; margin-bottom: 4px;
+      font-size: 9px; color: var(--muted); letter-spacing: .5px;
+    }
+    .settings-tier-head span:first-child { min-width: 50px; }
+    .settings-btns {
+      display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap;
+    }
+    .btn-settings-save {
+      background: rgba(0,212,255,.1); color: var(--cyan);
+      border: 1px solid rgba(0,212,255,.4); border-radius: 4px;
+      padding: 7px 16px; font-family: var(--mono); font-size: 11px;
+      cursor: pointer; transition: all .2s; flex: 1;
+    }
+    .btn-settings-save:hover { background: rgba(0,212,255,.2); }
+    .btn-settings-reset {
+      background: rgba(255,204,0,.08); color: var(--amber);
+      border: 1px solid rgba(255,204,0,.3); border-radius: 4px;
+      padding: 7px 14px; font-family: var(--mono); font-size: 11px;
+      cursor: pointer; transition: all .2s;
+    }
+    .btn-settings-reset:hover { background: rgba(255,204,0,.18); }
+    .btn-settings-cancel {
+      background: transparent; color: var(--muted);
+      border: 1px solid var(--border); border-radius: 4px;
+      padding: 7px 14px; font-family: var(--mono); font-size: 11px;
+      cursor: pointer; transition: all .2s;
+    }
+    .btn-settings-cancel:hover { background: var(--panel2); }
+    /* Agent log terminal panel */
+    .log-panel {
+      background: #03060d; border: 1px solid var(--border2);
+      border-radius: 6px; padding: 10px 14px; margin-bottom: 12px;
+    }
+    .log-panel-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .log-panel-title { font-size: 9px; color: var(--green); letter-spacing: 1px; }
+    .log-terminal {
+      background: #020408; border: 1px solid #0a1a2a;
+      border-radius: 4px; padding: 10px 12px;
+      font-family: var(--mono); font-size: 11px; line-height: 1.55;
+      max-height: 280px; overflow-y: auto;
+      color: #a8c8a0;
+    }
+    .log-terminal::-webkit-scrollbar { width: 5px; }
+    .log-terminal::-webkit-scrollbar-track { background: #020408; }
+    .log-terminal::-webkit-scrollbar-thumb { background: #0a2a1a; border-radius: 3px; }
+    .log-line-warn  { color: var(--amber); }
+    .log-line-error { color: var(--red); }
+    .log-line-info  { color: #7ab87a; }
+    .log-line-ok    { color: var(--green); }
+    .log-autoscroll-lbl { font-size: 9px; color: var(--muted); display: flex; align-items:center; gap:5px; }
+    .log-autoscroll-lbl input { cursor: pointer; }
+    .log-ticker { font-size: 9px; color: var(--muted); }
+    /* Settings summary panel */
+    .cfg-panel {
+      background: var(--panel); border: 1px solid var(--border2);
+      border-radius: 6px; padding: 10px 14px; margin-bottom: 12px;
+    }
+    .cfg-panel-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .cfg-panel-title { font-size: 9px; color: var(--purple); letter-spacing: 1px; }
+    .cfg-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 5px 14px;
+    }
+    .cfg-row { display: flex; align-items: baseline; gap: 6px; }
+    .cfg-key  { font-size: 9px; color: var(--muted); min-width: 90px; }
+    .cfg-val  { font-size: 11px; color: var(--text); }
+    .cfg-conc { display: flex; gap: 16px; margin-top: 6px; }
+    .cfg-conc-item { font-size: 11px; }
+    .at-cap   { color: var(--red); }
+    .near-cap { color: var(--amber); }
+    .ok-cap   { color: var(--green); }
+    .settings-modal-box {
+      background: var(--panel); border: 1px solid var(--purple);
+      border-radius: 8px; padding: 24px;
+      box-shadow: 0 0 40px rgba(167,139,250,.15);
+      max-width: 520px; width: 96%; max-height: 90vh;
+      overflow-y: auto;
+    }
+    .btn-reroll-all {
+      font-family: var(--mono); font-size: 11px;
+      color: #ff9944; background: rgba(255,153,68,.08);
+      border: 1px solid rgba(255,153,68,.35); border-radius: 4px;
+      padding: 3px 10px; cursor: pointer; transition: all .15s;
+    }
+    .btn-reroll-all:hover { background: rgba(255,153,68,.2); border-color: #ff9944; }
+    .btn-reroll-all:disabled { opacity: .35; cursor: not-allowed; }
+    .btn-add-to-plan {
+      font-family: var(--mono); font-size: 11px;
+      color: var(--green); background: rgba(0,255,136,.08);
+      border: 1px solid rgba(0,255,136,.35); border-radius: 4px;
+      padding: 3px 10px; cursor: pointer; transition: all .15s;
+    }
+    .btn-add-to-plan:hover { background: rgba(0,255,136,.2); border-color: var(--green); }
+    .btn-add-to-plan:disabled { opacity: .35; cursor: not-allowed; }
+
+    /* ── PIN Modal ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.75); z-index: 1000;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.visible { display: flex; }
+    .modal-box {
+      background: var(--panel); border: 1px solid var(--red);
+      border-radius: 8px; padding: 28px 32px;
+      min-width: 300px; text-align: center;
+      box-shadow: 0 0 40px rgba(255,68,102,.3);
+    }
+    .modal-title { font-family: var(--px); font-size: 8px; color: var(--red); margin-bottom: 16px; }
+    .modal-desc  { font-size: 11px; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
+    .pin-input {
+      font-family: var(--mono); font-size: 18px; letter-spacing: .4em;
+      color: var(--text); background: var(--panel2);
+      border: 1px solid var(--border); border-radius: 4px;
+      padding: 8px 14px; text-align: center; width: 100%;
+      margin-bottom: 16px; outline: none;
+    }
+    .pin-input:focus { border-color: var(--cyan); }
+    .modal-btns { display: flex; gap: 10px; }
+    .btn-confirm {
+      flex: 1; font-family: var(--mono); font-size: 12px;
+      background: rgba(255,68,102,.15); color: var(--red);
+      border: 1px solid rgba(255,68,102,.5); border-radius: 4px;
+      padding: 8px; cursor: pointer;
+    }
+    .btn-confirm:hover { background: rgba(255,68,102,.3); }
+    .btn-cancel {
+      flex: 1; font-family: var(--mono); font-size: 12px;
+      background: transparent; color: var(--muted);
+      border: 1px solid var(--border); border-radius: 4px;
+      padding: 8px; cursor: pointer;
+    }
+    .btn-cancel:hover { background: var(--panel2); }
+    .modal-error { color: var(--red); font-size: 10px; margin-top: 8px; min-height: 16px; }
+    .modal-success { color: var(--green); font-size: 10px; margin-top: 8px; }
+
+    /* ── Animations ── */
+    @keyframes typing-bob {
+      0%   { transform: translateY(0px); }
+      50%  { transform: translateY(-6px); }
+      100% { transform: translateY(0px); }
+    }
+    @keyframes screen-glow-pulse {
+      0%   { opacity: 0.35; }
+      20%  { opacity: 0.90; }
+      45%  { opacity: 0.50; }
+      65%  { opacity: 0.85; }
+      80%  { opacity: 0.40; }
+      100% { opacity: 0.35; }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--green); }
+      50%       { opacity: .5; box-shadow: 0 0 10px var(--green); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────── -->
+<div class="hdr panel">
+  <div class="hdr-left">
+    <span class="dot"></span>
+    <span class="hdr-title">IFOND AGENT</span>
+    <span class="hdr-sub">BASE CHAIN</span>
+  </div>
+  <div class="wallet-tabs" id="wallet-tabs"></div>
+  <div class="hdr-right">
+    <button class="btn-sweep" id="btn-sweep">↺ SWEEP → ETH</button>
+    <button class="btn-dust" id="btn-dust">🧹 CLEAR DUST<span class="dust-badge" id="dust-badge" style="display:none">0</span></button>
+    <button class="btn-emergency" id="btn-emergency">⚠ EMERGENCY CLOSE ALL</button>
+    <button class="btn-settings" id="btn-settings">⚙ SETTINGS</button>
+    <div class="refresh-wrap">
+      <span class="countdown" id="countdown">90s</span>
+      <button class="btn-refresh" id="btn-refresh">⟳ REFRESH</button>
+    </div>
+    <span style="font-size:10px;color:var(--muted)" id="last-updated">—</span>
+  </div>
+</div>
+
+<!-- ── Agent Config Summary ──────────────────────────── -->
+<!-- ── Agent Config Summary ──────────────────────────── -->
+<div class="cfg-panel">
+  <div class="cfg-panel-hdr">
+    <span class="cfg-panel-title">⚙ AGENT CONFIG</span>
+    <button class="btn-settings" id="btn-settings-cfg" style="padding:3px 10px;font-size:10px">EDIT</button>
+  </div>
+  <div class="cfg-grid">
+    <div class="cfg-row"><span class="cfg-key">USD TIERS</span><span class="cfg-val" id="cfg-tiers">—</span></div>
+    <div class="cfg-row"><span class="cfg-key">ETH MIN</span><span class="cfg-val" id="cfg-ethmin">—</span></div>
+    <div class="cfg-row"><span class="cfg-key">KEEP USDC</span><span class="cfg-val" id="cfg-usdc">—</span></div>
+    <div class="cfg-row"><span class="cfg-key">KEEP WETH</span><span class="cfg-val" id="cfg-weth">—</span></div>
+    <div class="cfg-row"><span class="cfg-key">HOLD LEND</span><span class="cfg-val" id="cfg-exp-lend">—</span></div>
+    <div class="cfg-row"><span class="cfg-key">HOLD LP</span><span class="cfg-val" id="cfg-exp-lp">—</span></div>
+    <div class="cfg-row"><span class="cfg-key">HOLD BORROW</span><span class="cfg-val" id="cfg-exp-borrow">—</span></div>
+    <div class="cfg-row"><span class="cfg-key">HOLD VOTE</span><span class="cfg-val" id="cfg-exp-vote">—</span></div>
+  </div>
+</div>
+
+<!-- ── Top grid: Character | Schedule ────────────────── -->
+<div class="top-grid">
+
+  <!-- Avatar + Wallet -->
+  <div class="panel char-panel">
+    <div class="panel-title">AGENT STATUS</div>
+    <div class="sprite-wrap">
+      <img id="sprite" src="natsu_pensive.PNG" alt="NATSU">
+      <div class="laser-glow"></div>
+    </div>
+    <div class="wallet-card">
+      <div class="wallet-addr" id="wallet-addr">loading...</div>
+      <div class="bal-row"><span class="bal-label">ETH</span><span class="bal-val" id="bal-eth">—</span></div>
+      <div class="bal-row"><span class="bal-label">USDC</span><span class="bal-val" id="bal-usdc">—</span></div>
+      <div class="bal-row"><span class="bal-label" style="color:var(--muted)">Wallet</span><span class="bal-val" id="bal-wallet" style="color:var(--muted)">—</span></div>
+      <div class="bal-row"><span class="bal-label" style="color:var(--muted)">Positions</span><span class="bal-val" id="bal-positions" style="color:var(--muted)">—</span></div>
+      <div class="bal-row bal-total">
+        <span class="bal-label">Total</span>
+        <span class="bal-val" id="bal-total">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats (center) -->
+  <div class="panel">
+    <div class="panel-title">STATS</div>
+    <div id="stats-content">
+      <div class="stat-card">
+        <div class="stat-label">Active Positions</div>
+        <div class="stat-val green" id="stat-active">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Opened Today</div>
+        <div class="stat-val" id="stat-opened">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Opened (30d)</div>
+        <div class="stat-val" id="stat-opened30">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">30d Volume</div>
+        <div class="stat-val gold" id="stat-vol">—</div>
+      </div>
+    </div>
+    <div class="type-grid" id="type-counts"></div>
+  </div>
+
+  <!-- Today's Plan (right) -->
+  <div class="panel" id="briefing-panel">
+    <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span>TODAY'S PLAN <span id="briefing-date"></span></span>
+      <div style="display:flex;gap:8px">
+        <button class="btn-add-to-plan" id="btn-add-to-plan">+ ADD TO PLAN</button>
+        <button class="btn-reroll-all" id="btn-reroll-all">↻ REROLL ALL</button>
+      </div>
+    </div>
+    <div id="briefing-content"><div style="color:var(--muted);font-size:13px">Loading...</div></div>
+  </div>
+
+</div>
+
+<!-- ── Protocol Summary Bar ──────────────────────────── -->
+<div class="proto-bar" id="proto-bar"></div>
+
+<!-- ── Active Positions ──────────────────────────────── -->
+<div class="panel positions-panel">
+  <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between">
+    <span>ACTIVE POSITIONS <span id="pos-count"></span><span id="pos-next-refresh" style="font-size:10px;color:var(--muted);margin-left:8px;font-weight:normal"></span></span>
+    <div class="cfg-conc" style="margin:0">
+      <span style="font-size:9px;color:var(--muted);margin-right:6px;letter-spacing:.5px">SLOTS</span>
+      <span class="cfg-conc-item">LP <span id="conc-lp">—</span></span>
+      <span class="cfg-conc-item">LEND <span id="conc-lend">—</span></span>
+      <span class="cfg-conc-item">BORROW <span id="conc-borrow">—</span></span>
+    </div>
+  </div>
+  <div class="positions-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th data-col="id">#</th>
+          <th data-col="protocol">PROTOCOL</th>
+          <th data-col="display_name">TASK</th>
+          <th data-col="type">TYPE</th>
+          <th data-col="token">TOKEN</th>
+          <th data-col="usd_est" style="text-align:right">~USD</th>
+          <th data-col="days_left" style="text-align:right">EXPIRY</th>
+          <th>TX</th>
+          <th>ACTION</th>
+        </tr>
+      </thead>
+      <tbody id="pos-tbody">
+        <tr><td colspan="9" class="pos-empty">Loading positions...</td></tr>
+      </tbody>
+      <tfoot id="pos-tfoot"></tfoot>
+    </table>
+  </div>
+</div>
+
+
+<!-- ── Health Monitor ────────────────────────────────── -->
+<div class="panel" style="margin-bottom:12px">
+  <div class="panel-title">HEALTH MONITOR <span id="health-cache-tag"></span><span id="health-next-refresh" style="font-size:10px;color:var(--muted);margin-left:8px;font-weight:normal"></span></div>
+  <div class="health-grid" id="health-content">
+    <div class="health-empty">Loading health data...</div>
+  </div>
+</div>
+
+<!-- ── Logs 2-column ──────────────────────────────────── -->
+<div class="logs-grid">
+  <!-- Action Log -->
+  <div class="panel log-panel">
+    <div class="panel-title">ACTION LOG <span id="action-log-count"></span></div>
+    <div class="log-scroll" id="action-log-content"><div class="action-empty">No actions yet</div></div>
+  </div>
+  <!-- The Rule Log -->
+  <div class="panel log-panel">
+    <div class="panel-title">THE RULE — VALIDATION <span id="rule-log-count"></span></div>
+    <div class="log-scroll" id="rule-log-content"><div class="rule-empty">No events yet</div></div>
+  </div>
+</div>
+
+<!-- ── Action History ─────────────────────────────────── -->
+<div class="panel history-panel">
+  <div class="panel-title">ACTION HISTORY <span id="history-count"></span></div>
+  <div id="history-content"><div class="hist-empty">Loading...</div></div>
+</div>
+
+
+<!-- ── Agent Log Terminal ────────────────────────────── -->
+<div class="log-panel">
+  <div class="log-panel-hdr">
+    <span class="log-panel-title">▶ AGENT LOG (CMD OUTPUT)</span>
+    <div style="display:flex;align-items:center;gap:12px">
+      <label class="log-autoscroll-lbl">
+        <input type="checkbox" id="log-autoscroll" checked> auto-scroll
+      </label>
+      <span class="log-ticker" id="log-ticker">—</span>
+      <button class="btn-refresh" id="btn-log-refresh" style="padding:3px 10px;font-size:10px">⟳</button>
+    </div>
+  </div>
+  <div class="log-terminal" id="log-terminal">
+    <span style="color:var(--muted)">Loading...</span>
+  </div>
+</div>
+
+<!-- ── Add to Plan Modal ─────────────────────────────── -->
+<div class="modal-overlay" id="add-to-plan-modal">
+  <div class="modal-box" style="border-color:var(--green);box-shadow:0 0 40px rgba(0,255,136,.2)">
+    <div class="modal-title" style="color:var(--green)">+ ADD TO PLAN</div>
+    <div class="modal-desc">Schedule one new action for today — will run at a random future time.<br>Enter PIN to confirm.</div>
+    <input class="pin-input" type="password" id="add-to-plan-pin" maxlength="4" placeholder="••••" autocomplete="off">
+    <div class="modal-btns">
+      <button class="btn-confirm" id="add-to-plan-confirm" style="background:rgba(0,255,136,.1);color:var(--green);border-color:rgba(0,255,136,.4)">CONFIRM</button>
+      <button class="btn-cancel"  id="add-to-plan-cancel">CANCEL</button>
+    </div>
+    <div class="modal-error" id="add-to-plan-error"></div>
+  </div>
+</div>
+
+<!-- ── PIN Modal ─────────────────────────────────────── -->
+<div class="modal-overlay" id="pin-modal">
+  <div class="modal-box">
+    <div class="modal-title">⚠ CONFIRM EMERGENCY CLOSE</div>
+    <div class="modal-desc">This will close ALL active positions immediately.<br>Enter PIN to confirm.</div>
+    <input class="pin-input" type="password" id="pin-input" maxlength="6" placeholder="••••••" autocomplete="off">
+    <div class="modal-btns">
+      <button class="btn-confirm" id="pin-confirm">CONFIRM</button>
+      <button class="btn-cancel"  id="pin-cancel">CANCEL</button>
+    </div>
+    <div class="modal-error" id="pin-error"></div>
+  </div>
+</div>
+
+<!-- ── Settings Modal ────────────────────────────── -->
+<div class="modal-overlay" id="settings-modal">
+  <div class="settings-modal-box">
+    <div class="modal-title" style="color:var(--purple);margin-bottom:16px">⚙ SETTINGS</div>
+
+    <!-- USD Tiers -->
+    <div class="settings-section">
+      <div class="settings-section-title">USD Amount per Action</div>
+      <div style="font-size:9px;color:var(--muted);margin-bottom:8px">⏱ Takes effect: next plan generation (tomorrow 07:00 BKK) — or immediately for new ADD TO PLAN actions today</div>
+      <div class="settings-tier-head">
+        <span style="min-width:50px"></span>
+        <span style="min-width:72px;text-align:right">Min $</span>
+        <span style="min-width:72px;text-align:right;margin-left:8px">Max $</span>
+        <span style="min-width:72px;text-align:right;margin-left:8px">Weight %</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Tier 1</span>
+        <input class="settings-input" id="t1-min" type="number" min="1" step="0.5">
+        <input class="settings-input" id="t1-max" type="number" min="1" step="0.5">
+        <input class="settings-input" id="t1-w"   type="number" min="1" max="99" step="1">
+        <span class="settings-unit">%</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Tier 2</span>
+        <input class="settings-input" id="t2-min" type="number" min="1" step="0.5">
+        <input class="settings-input" id="t2-max" type="number" min="1" step="0.5">
+        <input class="settings-input" id="t2-w"   type="number" min="1" max="99" step="1">
+        <span class="settings-unit">%</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Tier 3</span>
+        <input class="settings-input" id="t3-min" type="number" min="1" step="0.5">
+        <input class="settings-input" id="t3-max" type="number" min="1" step="0.5">
+        <input class="settings-input" id="t3-w"   type="number" min="1" max="99" step="1">
+        <span class="settings-unit">%</span>
+      </div>
+      <div class="settings-weight-sum" id="weight-sum-display">Total: — %</div>
+    </div>
+
+    <!-- ETH Protection -->
+    <div class="settings-section">
+      <div class="settings-section-title">ETH Protection</div>
+      <div style="font-size:9px;color:var(--muted);margin-bottom:8px">⚡ Takes effect: immediately on next action execution</div>
+      <div class="settings-row">
+        <span class="settings-label">Min ETH</span>
+        <input class="settings-input" id="eth-min" type="number" min="0.001" step="0.001" style="width:90px">
+        <span class="settings-unit">ETH</span>
+        <span style="font-size:10px;color:var(--muted);margin-left:4px">agent stops new opens if below</span>
+      </div>
+    </div>
+
+    <!-- Token Retention -->
+    <div class="settings-section">
+      <div class="settings-section-title">Token Retention (sweep keeps this)</div>
+      <div style="font-size:9px;color:var(--muted);margin-bottom:8px">⚡ Takes effect: immediately on next sweep run</div>
+      <div class="settings-row">
+        <span class="settings-label">Keep USDC</span>
+        <input class="settings-input" id="usdc-retain" type="number" min="0" step="1" style="width:90px">
+        <span class="settings-unit">USD</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Keep WETH</span>
+        <input class="settings-input" id="weth-retain" type="number" min="0" step="0.001" style="width:90px">
+        <span class="settings-unit">ETH</span>
+      </div>
+    </div>
+
+    <!-- Expiry Days -->
+    <div class="settings-section">
+      <div class="settings-section-title">Hold Duration (days)</div>
+      <div style="font-size:9px;color:var(--muted);margin-bottom:8px">⏱ Takes effect: next plan generation (tomorrow 07:00 BKK) — or immediately for new ADD TO PLAN actions today</div>
+      <div class="settings-tier-head">
+        <span style="min-width:60px"></span>
+        <span style="min-width:72px;text-align:right">Min</span>
+        <span style="min-width:72px;text-align:right;margin-left:8px">Max</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Lend</span>
+        <input class="settings-input" id="exp-lend-min" type="number" min="1" max="90" step="1">
+        <input class="settings-input" id="exp-lend-max" type="number" min="1" max="90" step="1">
+        <span class="settings-unit">days</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">LP</span>
+        <input class="settings-input" id="exp-lp-min" type="number" min="1" max="90" step="1">
+        <input class="settings-input" id="exp-lp-max" type="number" min="1" max="90" step="1">
+        <span class="settings-unit">days</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Borrow</span>
+        <input class="settings-input" id="exp-borrow-min" type="number" min="1" max="90" step="1">
+        <input class="settings-input" id="exp-borrow-max" type="number" min="1" max="90" step="1">
+        <span class="settings-unit">days</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Vote</span>
+        <input class="settings-input" id="exp-vote-min" type="number" min="1" max="90" step="1">
+        <input class="settings-input" id="exp-vote-max" type="number" min="1" max="90" step="1">
+        <span class="settings-unit">days</span>
+      </div>
+    </div>
+
+    <!-- Max Concurrent -->
+    <div class="settings-section">
+      <div class="settings-section-title">Max Concurrent Positions</div>
+      <div style="font-size:9px;color:var(--muted);margin-bottom:8px">⚡ Takes effect: immediately on next action execution</div>
+      <div class="settings-row">
+        <span class="settings-label">LP</span>
+        <input class="settings-input" id="mc-lp"     type="number" min="1" max="50" step="1">
+        <span class="settings-unit">slots</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Lend</span>
+        <input class="settings-input" id="mc-lend"   type="number" min="1" max="50" step="1">
+        <span class="settings-unit">slots</span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Borrow</span>
+        <input class="settings-input" id="mc-borrow" type="number" min="1" max="50" step="1">
+        <span class="settings-unit">slots</span>
+      </div>
+    </div>
+
+    <div class="modal-error" id="settings-error" style="margin-bottom:8px"></div>
+    <div class="settings-btns">
+      <button class="btn-settings-save"   id="settings-save">SAVE</button>
+      <button class="btn-settings-reset"  id="settings-reset">RESET DEFAULTS</button>
+      <button class="btn-settings-cancel" id="settings-cancel">CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<script>
+
+/* ── Platform name helper (mirrors name_utils.py _auto_name) ── */
+const _TOKS = {
+  weth:'WETH',usdc:'USDC',usdt:'USDT',wsteth:'wstETH',cbbtc:'cbBTC',
+  eurc:'EURC',aero:'AERO',virtual:'VIRTUAL',usds:'USDS',susds:'sUSDS',
+  morpho:'MORPHO',cbxrp:'cbXRP',cake:'CAKE',weeth:'weETH',dola:'DOLA',usdz:'USDz',
+};
+function _tj(s){ return _TOKS[s.toLowerCase()] || s.toUpperCase(); }
+function autoName(key) {
+  if (!key) return key;
+  const k = key.toLowerCase();
+  const fee = {'100':'0.01%','500':'0.05%','2500':'0.25%','3000':'0.3%','10000':'1%'};
+  const sp = {
+    'deploy_contract':'Deploy Contract','megapot':'ซื้อลอตเตอรี Megapot',
+    'aero_vote':'โหวต AERO ที่ Aerodrome','compound_usdc':'ฝาก USDC ที่ Compound',
+    'spark_susds':'ฝาก sUSDS ที่ Spark',
+  };
+  if (sp[k]) return sp[k];
+  if (k.startsWith('aero_lp_'))   { const p=k.slice(8).split('_');  return `LP ${_tj(p[0])}/${_tj(p[1])} ที่ Aerodrome`; }
+  if (k.startsWith('uni_lp_'))    { const p=k.slice(7).split('_');  const f=fee[p[2]]||''; return `LP ${_tj(p[0])}/${_tj(p[1])} ที่ Uniswap${f?` (${f})`:''}`; }
+  if (k.startsWith('pancake_lp_')){ const p=k.slice(11).split('_'); const f=fee[p[2]]||''; return `LP ${_tj(p[0])}/${_tj(p[1])} ที่ PancakeSwap${f?` (${f})`:''}`; }
+  if (k.startsWith('beefy_') && k.endsWith('_vlp')) { const p=k.slice(6,-4).split('_'); return `LP ${_tj(p[0])}/${_tj(p[1])} ที่ Beefy`; }
+  if (k.startsWith('beefy_'))     { const p=k.slice(6).split('_'); const v=p[1]?p[1][0].toUpperCase()+p[1].slice(1):''; return v?`ฝาก ${_tj(p[0])} ที่ Beefy (${v})`:`ฝาก ${_tj(p[0])} ที่ Beefy`; }
+  if (k.startsWith('cb_'))        { const p=k.slice(3).split('_'); const coll=p[1]==='multi'?'หลายค้ำ':p.slice(1).map(_tj).join('+'); return `ยืม ${_tj(p[0])} ใช้ ${coll} ค้ำที่ Compound`; }
+  if (k.startsWith('fl_'))        { const p=k.slice(3).split('_'); return `ยืม ${_tj(p[1])} ใช้ ${_tj(p[0])} ค้ำที่ Fluid`; }
+  if (k.startsWith('mw_'))        { const p=k.slice(3).split('_'); return `ยืม ${_tj(p[1])} ใช้ ${_tj(p[0])} ค้ำที่ Moonwell`; }
+  if (k.startsWith('aav_'))       { const p=k.slice(4).split('_'); return `ยืม ${_tj(p[1])} ใช้ ${_tj(p[0])} ค้ำที่ AAVE`; }
+  if (k.startsWith('aave_'))      return `ฝาก ${_tj(k.slice(5))} ที่ AAVE`;
+  for (const [pf,pn] of [['fluid','Fluid'],['moonwell','Moonwell'],['morpho','Morpho']]) {
+    if (k.startsWith(pf+'_')) return `ฝาก ${_tj(k.slice(pf.length+1))} ที่ ${pn}`;
+  }
+  return key;
+}
+
+function getProtocol(key) {
+  if (!key) return '';
+  const k = key.toLowerCase();
+  if (k.startsWith('fl_'))         return 'fluid';
+  if (k.startsWith('mw_'))         return 'moonwell';
+  if (k.startsWith('cb_'))         return 'compound';
+  if (k.startsWith('aav_'))        return 'aave';
+  if (k.startsWith('aave_'))       return 'aave';
+  if (k.startsWith('aero_lp_'))    return 'aerodrome';
+  if (k.startsWith('aero_vote'))   return 'aero';
+  if (k.startsWith('uni_lp_'))     return 'uniswap';
+  if (k.startsWith('pancake_lp_')) return 'pancake';
+  if (k.startsWith('beefy_'))      return 'beefy';
+  if (k.startsWith('morpho_'))     return 'morpho';
+  if (k.startsWith('moonwell_'))   return 'moonwell';
+  if (k.startsWith('fluid_'))      return 'fluid';
+  if (k.startsWith('compound_'))   return 'compound';
+  if (k.startsWith('spark_'))      return 'spark';
+  return k.split('_')[0];
+}
+
+/* ── Utilities ───────────────────────────────────── */
+function fmt(n, dec = 2) {
+  if (n == null || isNaN(n)) return '—';
+  return Number(n).toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+function shortAddr(addr) {
+  if (!addr) return '—';
+  return addr.slice(0, 6) + '...' + addr.slice(-4);
+}
+function shortTx(tx) {
+  if (!tx) return '—';
+  return tx.slice(0, 6) + '...' + tx.slice(-4);
+}
+function now8() {
+  return new Date().toLocaleTimeString('en-US', {hour12: false});
+}
+
+/* ── Health rendering ────────────────────────────── */
+function healthBarPct(h) {
+  // 1.0 = 0%, 1.5 = 50%, 5.0 = 100%
+  const pct = Math.min(100, Math.max(0, ((h - 1.0) / 4.0) * 100));
+  return pct.toFixed(1);
+}
+function healthBadge(status) {
+  const map = { OK: 'ok', WARNING: 'warn', CRITICAL: 'critical', ERROR: 'error' };
+  const cls  = map[status] || 'error';
+  return `<span class="badge badge-${cls}">${status}</span>`;
+}
+function healthBarCls(status) {
+  const map = { OK: 'ok', WARNING: 'warn', CRITICAL: 'critical', ERROR: 'error' };
+  return 'bar-' + (map[status] || 'error');
+}
+function healthColor(status) {
+  const map = { OK: 'var(--green)', WARNING: 'var(--amber)', CRITICAL: 'var(--red)', ERROR: 'var(--red)' };
+  return map[status] || 'var(--red)';
+}
+
+function renderHealth(data) {
+  const el = document.getElementById('health-content');
+  const tag = document.getElementById('health-cache-tag');
+
+  if (data.from_cache) {
+    tag.textContent = '(cached)';
+  } else {
+    tag.textContent = '';
+  }
+
+  if (!data.results || data.results.length === 0) {
+    el.innerHTML = '<div class="health-empty">No active borrow positions</div>';
+    return;
+  }
+
+  let html = '';
+  data.results.forEach(r => {
+    if (r.error) {
+      html += `<div class="health-row">
+        <div class="health-row-top">
+          <span class="health-platform" style="color:var(--red)">Health check error: ${r.error}</span>
+        </div>
+      </div>`;
+      return;
+    }
+    const h    = parseFloat(r.health || 0).toFixed(2);
+    const pct  = healthBarPct(parseFloat(r.health || 0));
+    const bcls = healthBarCls(r.status);
+    const col  = healthColor(r.status);
+    html += `<div class="health-row">
+      <div class="health-row-top">
+        <span class="health-platform">${r.display_platform || autoName(r.platform)}</span>
+        <div class="health-right">
+          <span class="health-val" style="color:${col}">${h}x</span>
+          ${healthBadge(r.status)}
+        </div>
+      </div>
+      <div class="health-bar-bg">
+        <div class="health-bar ${bcls}" style="width:${pct}%"></div>
+      </div>
+    </div>`;
+  });
+  el.innerHTML = html;
+}
+
+/* ── Positions rendering ─────────────────────────── */
+/* ── Logo maps ───────────────────────────────────── */
+const _TW_BASE = 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/assets/';
+const _TW_ETH  = 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/';
+
+const TOKEN_LOGOS = {
+  // ── Base chain (verified ✅) ──
+  'WETH':    _TW_BASE + '0x4200000000000000000000000000000000000006/logo.png',
+  'ETH':     _TW_BASE + '0x4200000000000000000000000000000000000006/logo.png',
+  'USDC':    _TW_BASE + '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913/logo.png',
+  'USDS':    _TW_BASE + '0x820C137fa70C8691f0e44Dc420a5e53c168921Dc/logo.png',
+  'sUSDS':   _TW_BASE + '0x5875eEE11Cf8398102FdAd704C9E96607675467a/logo.png',
+  'EURC':    _TW_BASE + '0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42/logo.png',
+  'AERO':    _TW_BASE + '0x940181a94A35A4569E4529A3CDfB74e38FD98631/logo.png',
+  'VIRTUAL': _TW_BASE + '0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b/logo.png',
+  'CAKE':    _TW_BASE + '0x3055913c90Fcc1A6CE9a358911721eEb942013A1/logo.png',
+  'MORPHO':  _TW_BASE + '0xBAa5CC21fd487B8Fcc2F632f3F4E8D37262a0842/logo.png',
+  // ── Ethereum chain (Base 404 → ETH fallback, verified ✅) ──
+  'wstETH':  _TW_ETH  + '0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0/logo.png',
+  'weETH':   _TW_ETH  + '0xCd5fE23C85820F7B72D0926FC9b05b43E359b7ee/logo.png',
+  // cbBTC — Base TW 404, use native BTC logo (closest visual match)
+  'cbBTC':   'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/bitcoin/info/logo.png',
+  // ── Not in TW yet (new/niche tokens) → onerror → letter badge ──
+  'DOLA':    _TW_BASE + '0x4621b7A9c75199271F773Ebd9A499dbd165c3191/logo.png',
+  'USDz':    _TW_BASE + '0x04D5ddf5f3a8939889F11E97f8c4BB48317F1938/logo.png',
+  'cbXRP':   _TW_BASE + '0xcb585250f852C6c6bf90434AB21A00f02833a4af/logo.png',
+};
+
+const _AERO_LOGO = _TW_BASE + '0x940181a94A35A4569E4529A3CDfB74e38FD98631/logo.png';
+const ALL_PROTOCOLS = [
+  { key: 'compound',  name: 'Compound',    color: '#00D395' },
+  { key: 'fluid',     name: 'Fluid',       color: '#FF8040' },
+  { key: 'moonwell',  name: 'Moonwell',    color: '#9B59B6' },
+  { key: 'spark',     name: 'Spark',       color: '#E8614A' },
+  { key: 'morpho',    name: 'Morpho',      color: '#5B7BF5' },
+  { key: 'beefy',     name: 'Beefy',       color: '#4CAF50' },
+  { key: 'aerodrome', name: 'Aerodrome',   color: '#FF3CA0' },
+  { key: 'aero',      name: 'veAERO',      color: '#FF69B4' },
+  { key: 'uniswap',   name: 'Uniswap',     color: '#FF007A' },
+  { key: 'pancake',   name: 'PancakeSwap', color: '#FFB700' },
+  { key: 'aave',      name: 'AAVE',        color: '#B6509E' },
+];
+
+function renderProtoBar(summary) {
+  const el = document.getElementById('proto-bar');
+  if (!el) return;
+  el.innerHTML = ALL_PROTOCOLS.map(p => {
+    const d    = summary && summary[p.key];
+    const isActive = d && d.usd >= 0.5;
+    const cls  = isActive ? 'proto-active' : 'proto-inactive';
+    const bdr  = isActive ? `border-color:${p.color};box-shadow:0 0 10px ${p.color}33` : '';
+    const abbr = p.name.charAt(0);
+    const logoUrl = PROTO_LOGOS[p.key] || '';
+    const logoHtml = logoUrl
+      ? `<img src="${logoUrl}" width="22" height="22" alt="${p.name}" style="border-radius:50%;flex-shrink:0" onerror="this.outerHTML='<span class=logo-abbr>${abbr}</span>'">`
+      : `<span class="logo-abbr">${abbr}</span>`;
+    const statsHtml = isActive
+      ? `<span class="proto-card-stats">${d.count} pos</span><span class="proto-card-usd">$${d.usd.toFixed(2)}</span>`
+      : `<span class="proto-card-stats">inactive</span>`;
+    return `<div class="proto-card ${cls}" style="${bdr}">${logoHtml}<div class="proto-card-info"><span class="proto-card-name">${p.name}</span>${statsHtml}</div></div>`;
+  }).join('');
+}
+
+const PROTO_LOGOS = {
+  // compound — COMP token (Ethereum, well-established in TW)
+  'compound':  _TW_ETH  + '0xc00e94Cb662C3520282E6f5717214004A7f26888/logo.png',
+  // morpho — MORPHO token (Base)
+  'morpho':    _TW_BASE + '0xBAa5CC21fd487B8Fcc2F632f3F4E8D37262a0842/logo.png',
+  // aerodrome — AERO token (Base). aero_lp → 'aerodrome', aero_vote → 'aero' (both same logo)
+  'aerodrome': _AERO_LOGO,
+  'aero':      _AERO_LOGO,
+  // fluid — INST token (Instadapp/Fluid, Ethereum)
+  'fluid':     _TW_ETH  + '0x6f40d4A6237C257fff2dB00FA0510DeEECd303eb/logo.png',
+  // moonwell — WELL token (Base: 0xFF8adeC2221f9f4D8dfbAFa6B9a297d17603493D)
+  'moonwell':  _TW_BASE + '0xFF8adeC2221f9f4D8dfbAFa6B9a297d17603493D/logo.png',
+  // beefy — BIFI logo from beefyfinance GitHub (TW ETH/BSC both 404)
+  'beefy':     'https://raw.githubusercontent.com/beefyfinance/beefy-app/master/src/images/single-assets/BIFI.png',
+  // uniswap — UNI token (Ethereum)
+  'uniswap':   _TW_ETH  + '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984/logo.png',
+  // pancake — CAKE token (Base)
+  'pancake':   _TW_BASE + '0x3055913c90Fcc1A6CE9a358911721eEb942013A1/logo.png',
+  // spark — DAI token (Ethereum, Spark is MakerDAO/Sky's lending protocol)
+  'spark':     _TW_ETH  + '0x6B175474E89094C44Da98b954EedeAC495271d0F/logo.png',
+  // aave — AAVE token (Ethereum). aave_supply → 'aave', aav_borrow → 'aav' (both same logo)
+  'aave':      _TW_ETH  + '0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9/logo.png',
+  'aav':       _TW_ETH  + '0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9/logo.png',
+};
+
+function _logoImg(url, alt, size) {
+  size = size || 18;
+  const abbr = (alt || '?').charAt(0).toUpperCase();
+  return `<img src="${url}" width="${size}" height="${size}" alt="${alt}" title="${alt}" `
+       + `style="border-radius:50%;vertical-align:middle;flex-shrink:0" `
+       + `onerror="this.outerHTML='<span class=logo-abbr>${abbr}</span>'">`;
+}
+
+function tokenLogoCell(token, token0, token1) {
+  if (token0 && token1) {
+    const img0 = _logoImg(TOKEN_LOGOS[token0] || '', token0, 16);
+    const img1 = _logoImg(TOKEN_LOGOS[token1] || '', token1, 16);
+    return `<div class="td-token-cell"><span class="logo-pair">${img0}${img1}</span>`
+         + `<span style="font-size:11px;color:var(--cyan)">${token0}/${token1}</span></div>`;
+  }
+  const url = TOKEN_LOGOS[token] || '';
+  const img = url ? _logoImg(url, token) : `<span class="logo-abbr">${(token||'?').charAt(0)}</span>`;
+  return `<div class="td-token-cell">${img}<span style="font-size:11px;color:var(--cyan)">${token}</span></div>`;
+}
+
+function protoLogoCell(proto) {
+  const url = PROTO_LOGOS[proto] || '';
+  const img = url ? _logoImg(url, proto) : `<span class="logo-abbr">${(proto||'?').charAt(0).toUpperCase()}</span>`;
+  return `<div class="td-proto-cell">${img}<span style="font-size:11px">${proto}</span></div>`;
+}
+
+const _prevUsd = {};  // pos_id → last usd_est
+let _lastPositionsData = null;
+let _sortCol = 'id';
+let _sortDir = 'asc';
+
+let _posCountdownTimer = null;
+let _posCountdown = 0;
+function _startPosCountdown(seconds) {
+  clearInterval(_posCountdownTimer);
+  _posCountdown = seconds;
+  const el = document.getElementById('pos-next-refresh');
+  _posCountdownTimer = setInterval(() => {
+    _posCountdown--;
+    if (_posCountdown <= 0) {
+      clearInterval(_posCountdownTimer);
+      if (el) el.textContent = '';
+    } else {
+      if (el) el.textContent = `· next in ${_posCountdown}s`;
+    }
+  }, 1000);
+}
+
+function _applySortHeaders() {
+  document.querySelectorAll('thead th[data-col]').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+    if (th.dataset.col === _sortCol) {
+      th.classList.add(_sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+    }
+    th.onclick = () => {
+      if (_sortCol === th.dataset.col) {
+        _sortDir = _sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        _sortCol = th.dataset.col;
+        _sortDir = 'asc';
+      }
+      if (_lastPositionsData) _renderPositionsRows(_lastPositionsData);
+      _applySortHeaders();
+    };
+  });
+}
+
+function _renderPositionsRows(positions) {
+  const typeMap = { lend: 'pill-lend', borrow: 'pill-borrow', lp: 'pill-lp', vote: 'pill-vote' };
+  const tbody   = document.getElementById('pos-tbody');
+  const tfoot   = document.getElementById('pos-tfoot');
+
+  const sorted = [...positions].sort((a, b) => {
+    let av = a[_sortCol], bv = b[_sortCol];
+    if (typeof av === 'string') av = av.toLowerCase();
+    if (typeof bv === 'string') bv = bv.toLowerCase();
+    if (av < bv) return _sortDir === 'asc' ? -1 : 1;
+    if (av > bv) return _sortDir === 'asc' ?  1 : -1;
+    return 0;
+  });
+
+  let html = '';
+  let totalUsd = 0;
+  let totalDelta = 0;
+  sorted.forEach(p => {
+    const pillCls  = typeMap[p.type] || 'pill-lend';
+    const txHref   = p.tx_hash ? `https://basescan.org/tx/${p.tx_hash}` : '#';
+    const txLabel  = p.tx_hash ? shortTx(p.tx_hash) : '—';
+    const txTarget = p.tx_hash ? 'target="_blank"' : '';
+    let daysCls = 'days-ok';
+    if (p.days_left <= 1)  daysCls = 'days-over';
+    else if (p.days_left <= 3) daysCls = 'days-warn';
+
+    const cur  = parseFloat(p.usd_est) || 0;
+    const prev = _prevUsd[p.id];
+    let deltaHtml = '';
+    if (prev !== undefined && Math.abs(cur - prev) >= 0.001) {
+      const diff  = cur - prev;
+      const sign  = diff > 0 ? '+' : '';
+      const color = diff > 0 ? 'var(--green)' : 'var(--red)';
+      deltaHtml = ` <span style="font-size:10px;color:${color}">(${sign}${fmt(diff)})</span>`;
+      totalDelta += diff;
+    }
+    _prevUsd[p.id] = cur;
+    totalUsd += cur;
+
+    html += `<tr>
+      <td class="td-id">${p.id}</td>
+      <td class="td-protocol">${protoLogoCell(p.protocol || p.platform)}</td>
+      <td class="td-name">${p.display_name || p.platform}${p.locked_by_borrow ? '<span class="type-pill pill-locked">IN BORROW</span>' : ''}</td>
+      <td class="td-type"><span class="type-pill ${pillCls}">${p.type.toUpperCase()}</span></td>
+      <td class="td-token">${tokenLogoCell(p.token, p.token0, p.token1)}</td>
+      <td class="td-usd">$${fmt(cur)}${deltaHtml}</td>
+      <td class="td-days"><span class="${daysCls}">${p.days_left}d</span></td>
+      <td class="td-tx"><a class="tx-link" href="${txHref}" ${txTarget}>${txLabel}</a></td>
+      <td><button class="btn-withdraw-pos" id="wbtn-${p.id}" data-pos-id="${p.id}" data-name="${(p.display_name || p.platform).replace(/"/g,'&quot;')}">⬇ WITHDRAW</button></td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+
+  // Attach withdraw listeners after innerHTML (inline onclick unreliable)
+  tbody.querySelectorAll('.btn-withdraw-pos').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const posId = parseInt(btn.getAttribute('data-pos-id'), 10);
+      const name  = btn.getAttribute('data-name');
+      doWithdrawPosition(posId, name);
+    });
+  });
+
+  // Total row in tfoot
+  let totalDeltaHtml = '';
+  if (Math.abs(totalDelta) >= 0.001) {
+    const sign  = totalDelta > 0 ? '+' : '';
+    const color = totalDelta > 0 ? 'var(--green)' : 'var(--red)';
+    totalDeltaHtml = ` <span style="font-size:10px;color:${color}">(${sign}${fmt(totalDelta)})</span>`;
+  }
+  tfoot.innerHTML = `<tr>
+    <td colspan="5" style="text-align:right;color:var(--muted)">TOTAL</td>
+    <td class="td-usd" style="color:var(--gold);font-weight:bold;font-family:var(--mono);font-size:15px;letter-spacing:0">$${fmt(totalUsd)}${totalDeltaHtml}</td>
+    <td colspan="3"></td>
+  </tr>`;
+}
+
+function renderPositions(data) {
+  document.getElementById('pos-count').textContent = `(${data.active_count})`;
+  document.getElementById('stat-active').textContent = data.active_count;
+  document.getElementById('wallet-addr').textContent = shortAddr(data.wallet);
+
+  _startPosCountdown(REFRESH_SEC);
+  _lastPositionsData = data.active_positions || [];
+
+  const tbody = document.getElementById('pos-tbody');
+  if (!_lastPositionsData.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="pos-empty">No active positions</td></tr>';
+    document.getElementById('pos-tfoot').innerHTML = '';
+    return;
+  }
+
+  _renderPositionsRows(_lastPositionsData);
+  _applySortHeaders();
+}
+
+/* ── Balance rendering ───────────────────────────── */
+function renderBalance(data) {
+  if (data.error) {
+    document.getElementById('bal-eth').innerHTML   = '<span class="bal-error">RPC err</span>';
+    document.getElementById('bal-usdc').innerHTML  = '—';
+    document.getElementById('bal-total').innerHTML = '—';
+    return;
+  }
+  document.getElementById('bal-eth').textContent       = `${fmt(data.eth, 4)} (≈$${fmt(data.eth * data.eth_usd, 0)})`;
+  document.getElementById('bal-usdc').textContent      = `$${fmt(data.usdc)}`;
+  document.getElementById('bal-wallet').textContent    = `$${fmt(data.wallet_usd ?? data.total_usd)}`;
+  document.getElementById('bal-positions').textContent = `$${fmt(data.positions_usd ?? 0)}`;
+  document.getElementById('bal-total').textContent     = `$${fmt(data.total_usd)}`;
+}
+
+/* ── Stats rendering ─────────────────────────────── */
+function renderStats(data) {
+  // positions_gas/vol = computed directly from positions table (fallback when daily_stats empty)
+  const posGas = data.positions_gas || 0;
+  const posVol = data.positions_vol || 0;
+
+  if (!data.daily || data.daily.length === 0) {
+    document.getElementById('stat-opened').textContent   = '0';
+    document.getElementById('stat-opened30').textContent = '0';
+    document.getElementById('stat-vol').textContent      = `$${fmt(posVol)}`;
+    const tc2 = data.type_counts || {};
+    const order2 = ['LP','LEND','BORROW','VOTE','SPARK','GAME','DEPLOY','AVANTIS'];
+    document.getElementById('type-counts').innerHTML = order2.map(k => `
+      <div class="type-card"><div class="type-card-label">${k}</div><div class="type-card-val">${tc2[k] ?? 0}</div></div>`).join('');
+    return;
+  }
+  const today    = data.daily[0]; // newest first
+  const openedToday = (today.lend_count || 0) + (today.borrow_count || 0) +
+                      (today.lp_count || 0) + (today.vote_count || 0) +
+                      (today.game_count || 0) + (today.deploy_count || 0);
+  const opened30d = data.daily.reduce((s, r) =>
+    s + (r.lend_count||0) + (r.borrow_count||0) + (r.lp_count||0) +
+        (r.vote_count||0) + (r.game_count||0)   + (r.deploy_count||0), 0);
+  const vol30d = data.daily.reduce((s, r) => s + (r.volume_usd || 0), 0);
+
+  document.getElementById('stat-opened').textContent   = openedToday;
+  document.getElementById('stat-opened30').textContent = opened30d;
+  document.getElementById('stat-vol').textContent      = `$${fmt(vol30d > 0 ? vol30d : posVol)}`;
+
+  // Type counts
+  const tc = data.type_counts || {};
+  const order = ['LP','LEND','BORROW','VOTE','SPARK','GAME','DEPLOY','AVANTIS'];
+  const typeHtml = order.map(k => `
+    <div class="type-card">
+      <div class="type-card-label">${k}</div>
+      <div class="type-card-val">${tc[k] ?? 0}</div>
+    </div>`).join('');
+  document.getElementById('type-counts').innerHTML = typeHtml;
+}
+
+/* ── Action log ─────────────────────────────────── */
+function renderActionLog(data) {
+  const el    = document.getElementById('action-log-content');
+  const count = document.getElementById('action-log-count');
+  count.textContent = data.count ? `(${data.count})` : '';
+
+  if (!data.entries || data.entries.length === 0) {
+    el.innerHTML = '<div class="action-empty">No actions yet — waiting for first run</div>';
+    return;
+  }
+
+  const stepBadge = (step) => {
+    if (step === 'ok')      return `<span class="action-step-ok">OK</span>`;
+    if (step === 'fail')    return `<span class="action-step-fail">FAIL</span>`;
+    if (step === 'start')   return `<span class="action-step-mid">START</span>`;
+    if (step === 'close')   return `<span class="action-step-mid">CLOSE</span>`;
+    if (step === 'repick')  return `<span class="action-step-mid">REPICK</span>`;
+    if (step === 'recovery')return `<span class="action-step-rec">RECOVERY</span>`;
+    // Sub-step badges (granular logging)
+    if (['swap','wrap','unwrap','swap_stable','psm_buy','psm_sell','vote'].includes(step))
+      return `<span class="action-step-cyan">${step.toUpperCase()}</span>`;
+    if (['supply','stake','add_lp','mint_lp','collateral','enter_mkt','operate','lock','buy'].includes(step))
+      return `<span class="action-step-ok">${step.toUpperCase()}</span>`;
+    if (step === 'borrow')
+      return `<span class="action-step-borrow">BORROW</span>`;
+    if (step === 'deploy')
+      return `<span class="action-step-purple">DEPLOY</span>`;
+    if (['withdraw','unstake','remove_lp','unlock'].includes(step))
+      return `<span class="action-step-mid">${step.toUpperCase()}</span>`;
+    if (['approve','check','reset'].includes(step))
+      return `<span class="action-step-sub">${step.toUpperCase()}</span>`;
+    return `<span class="action-step-mid">${step.toUpperCase()}</span>`;
+  };
+
+  el.innerHTML = data.entries.map(e => {
+    const txHtml = e.txhash
+      ? `<div class="action-txhash">TX ${e.txhash.slice(0,10)}...</div>` : '';
+    const usdHtml = e.usd_est
+      ? `<span style="color:var(--gold);font-size:11px">$${e.usd_est.toFixed(2)} </span>` : '';
+    return `<div class="action-entry">
+      <span class="action-ts">${e.ts}</span>
+      ${stepBadge(e.step)}
+      <div class="action-body">
+        <div class="action-platform">${e.display_name || e.platform}</div>
+        <div class="action-detail">${usdHtml}${e.detail || ''}</div>
+        ${txHtml}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadActionLog() {
+  try {
+    const data = await fetch('/api/action_log').then(r => r.json());
+    renderActionLog(data);
+  } catch (e) {
+    document.getElementById('action-log-content').innerHTML =
+      '<div class="action-empty" style="color:var(--red)">Load error</div>';
+  }
+}
+
+/* ── The Rule log ───────────────────────────────── */
+function renderRuleLog(data) {
+  const el    = document.getElementById('rule-log-content');
+  const count = document.getElementById('rule-log-count');
+  count.textContent = data.count ? `(${data.count})` : '';
+
+  if (!data.entries || data.entries.length === 0) {
+    el.innerHTML = '<div class="rule-empty">No validation events yet — waiting for first action</div>';
+    return;
+  }
+
+  const outcomeHtml = (o) => {
+    if (!o) return '';
+    const cls = `outcome-${o}`;
+    return `<span class="rule-outcome ${cls}">${o.toUpperCase()}</span>`;
+  };
+
+  const ctxColor = {plan:'#a78bfa', maintenance:'#00d4ff', close:'#ffcc00', action:'#c8d8f0', reroll:'#ff9944', recovery:'#ff4466'};
+  el.innerHTML = data.entries.map(e => {
+    const ctx    = e.context || 'action';
+    const ctxCol = ctxColor[ctx] || '#888';
+    const passFail = e.ok
+      ? `<span style="font-family:var(--px);font-size:6px;padding:2px 6px;border-radius:3px;background:rgba(0,255,136,.15);color:var(--green);border:1px solid rgba(0,255,136,.4);min-width:40px;text-align:center;display:inline-block">PASS</span>`
+      : `<span style="font-family:var(--px);font-size:6px;padding:2px 6px;border-radius:3px;background:rgba(255,68,102,.15);color:var(--red);border:1px solid rgba(255,68,102,.4);min-width:40px;text-align:center;display:inline-block">FAIL</span>`;
+    const ctxBadge = `<span style="font-family:var(--px);font-size:5px;padding:1px 4px;border-radius:2px;color:${ctxCol};border:1px solid ${ctxCol};opacity:.8;white-space:nowrap">${ctx.toUpperCase()}</span>`;
+    const platCls  = e.ok ? 'color:var(--cyan)' : 'color:var(--muted);text-decoration:line-through';
+    const dispCurrent  = e.display_current  || autoName(e.current);
+    const dispOriginal = e.display_original || autoName(e.original);
+    const orig     = (e.original !== e.current && ctx === 'action')
+      ? `<span class="rule-orig">&rarr; ${dispCurrent}</span>` : '';
+    const platformLabel = (e.original !== e.current && ctx === 'action') ? dispOriginal : dispCurrent;
+    const reason   = (e.reason && e.reason !== 'ok')
+      ? `<span class="rule-reason">${e.reason}</span>` : '';
+    return `<div class="rule-entry">
+      <span class="rule-ts">${e.ts}</span>
+      ${passFail}
+      ${ctxBadge}
+      <span class="rule-attempt">#${e.attempt}</span>
+      <span class="rule-platform" style="${platCls}">${platformLabel}${orig}</span>
+      ${reason}
+      ${outcomeHtml(e.outcome)}
+    </div>`;
+  }).join('');
+}
+
+async function loadRuleLog() {
+  try {
+    const data = await fetch('/api/rule_log').then(r => r.json());
+    renderRuleLog(data);
+  } catch (e) {
+    document.getElementById('rule-log-content').innerHTML =
+      '<div class="rule-empty" style="color:var(--red)">Load error</div>';
+  }
+}
+
+/* ── Briefing card ──────────────────────────────── */
+function renderBriefing(data) {
+  document.getElementById('briefing-date').textContent = `${data.date} (${data.weekday})`;
+  const el = document.getElementById('briefing-content');
+  if (data.error) {
+    el.innerHTML = `<div style="color:var(--red);font-size:11px">Error: ${data.error}</div>`;
+    return;
+  }
+
+  const w = data.wallet || {};
+  const totalStr = w.total_usd ? `$${fmt(w.total_usd)}` : '—';
+  const ethStr   = w.eth ? `${w.eth} ETH` : '—';
+
+  // Schedule rows
+  const schedHtml = (data.schedule || []).map(s => {
+    const tick  = s.done ? '<span style="color:var(--green)">&#10003;</span>' : '<span style="color:var(--muted)">○</span>';
+    return `<div class="sched-row">
+      <span class="sched-tick">${tick}</span>
+      <span class="sched-time">${s.time}</span>
+      <span class="sched-event">${s.event}</span>
+    </div>`;
+  }).join('');
+
+  // Planned actions
+  const plan = data.plan || [];
+  const anyDone = plan.some(a => a.done);
+  const planHtml = plan.length ? `
+    <div class="brf-label" style="margin-top:8px">PLANNED ACTIONS</div>
+    ${plan.map(a => {
+      const canReroll = !a.done;
+      const done = a.done
+        ? '<span style="color:var(--green);font-size:12px">&#10003;</span>'
+        : '<span style="color:var(--muted);font-size:10px">○</span>';
+      const typeCls = a.disp_type === 'BORROW' ? 'pill-borrow' : a.disp_type === 'LP' ? 'pill-lp' : a.disp_type === 'VOTE' ? 'pill-vote' : 'pill-lend';
+      const rerollBtn = canReroll
+        ? `<button onclick="doReroll(${a.idx})" style="font-family:var(--mono);font-size:10px;padding:2px 8px;background:rgba(255,153,68,.1);color:#ff9944;border:1px solid rgba(255,153,68,.4);border-radius:3px;cursor:pointer" title="Reroll this action">&#8635;</button>`
+        : '<span style="min-width:30px"></span>';
+      const cancelBtn = canReroll
+        ? `<button onclick="doCancelPlan(${a.idx})" style="font-family:var(--mono);font-size:10px;padding:2px 6px;background:rgba(255,68,102,.1);color:var(--red);border:1px solid rgba(255,68,102,.4);border-radius:3px;cursor:pointer" title="Cancel this action">✕</button>`
+        : '<span style="min-width:24px"></span>';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border2);font-size:11px;${a.done?'opacity:.5':''}">
+        <span style="min-width:16px">${done}</span>
+        <span style="color:var(--gold);min-width:48px">${a.time_bkk}</span>
+        <span class="type-pill ${typeCls}" style="font-size:6px">${a.disp_type}</span>
+        ${protoLogoCell(a.protocol || getProtocol(a.platform))}
+        <span style="color:var(--text);flex:1">${autoName(a.platform)}</span>
+        <span style="color:var(--gold);min-width:40px;text-align:right">$${Number(a.usd_est).toFixed(2)}</span>
+        <span style="color:var(--muted);min-width:36px;text-align:right;font-size:10px">${a.expiry_days != null ? a.expiry_days+'d' : '—'}</span>
+        ${rerollBtn}${cancelBtn}
+      </div>`;
+    }).join('')}
+  ` : '<div style="color:var(--muted);font-size:10px">No plan yet — runs at 07:00 BKK</div>';
+
+  // Warnings — compact banner, only if present
+  const warnBanner = (data.warnings || []).length
+    ? `<div class="warn-banner">${data.warnings.map(w => `<div class="warn-row">⚠ ${w}</div>`).join('')}</div>`
+    : '';
+
+  el.innerHTML = `
+    ${warnBanner}
+    <div class="brf-label">SCHEDULE</div>
+    ${schedHtml}
+    <div style="margin-top:10px;font-size:13px">
+      <span style="color:var(--muted)">Actions: </span>
+      <span style="color:var(--cyan);font-weight:bold">${data.n_actions}</span>
+      <span style="color:var(--muted)"> from ${data.candidates} eligible</span>
+    </div>
+    ${planHtml}
+  `;
+}
+
+async function loadBriefing() {
+  try {
+    const data = await fetch('/api/briefing').then(r => r.json());
+    renderBriefing(data);
+  } catch (e) {
+    document.getElementById('briefing-content').innerHTML =
+      '<div style="color:var(--red);font-size:11px">Briefing load failed</div>';
+  }
+}
+
+/* ── Reroll ──────────────────────────────────────── */
+async function doReroll(idx) {
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = '...';
+  try {
+    const res  = await fetch('/api/reroll', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({idx}),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      loadBriefing();
+      loadRuleLog();
+    } else {
+      alert('Reroll failed: ' + (data.error || 'unknown'));
+      btn.disabled = false;
+      btn.textContent = '↻';
+    }
+  } catch (e) {
+    alert('Network error');
+    btn.disabled = false;
+    btn.textContent = '↻';
+  }
+}
+
+/* ── Cancel plan action ─────────────────────────── */
+async function doCancelPlan(idx) {
+  try {
+    const res  = await fetch('/api/cancel_plan', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({idx}),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      loadBriefing();
+    } else {
+      alert('Cancel failed: ' + (data.error || 'unknown'));
+    }
+  } catch (e) {
+    alert('Network error');
+  }
+}
+
+/* ── Auto-refresh countdown ──────────────────────── */
+const REFRESH_SEC = 90;
+let countdown = REFRESH_SEC;
+let countdownTimer = null;
+
+function startCountdown() {
+  countdown = REFRESH_SEC;
+  clearInterval(countdownTimer);
+  countdownTimer = setInterval(() => {
+    countdown--;
+    document.getElementById('countdown').textContent = `${countdown}s`;
+    if (countdown <= 0) {
+      loadAll();
+      countdown = REFRESH_SEC;
+    }
+  }, 1000);
+}
+
+// ── Wallet tabs ───────────────────────────────────────────────────────
+let _walletSwitching = false;
+
+async function fetchWallets() {
+  try {
+    const r = await fetch('/api/wallets');
+    const data = await r.json();
+    renderWalletTabs(data.wallets || []);
+  } catch (e) {
+    console.warn('fetchWallets error:', e);
+  }
+}
+
+function renderWalletTabs(wallets) {
+  const container = document.getElementById('wallet-tabs');
+  if (!container) return;
+  container.innerHTML = '';
+  wallets.forEach(w => {
+    const btn = document.createElement('button');
+    btn.className = 'w-tab' + (w.is_active ? ' active' : '');
+    btn.textContent = w.name;
+    btn.dataset.id = w.id;
+    btn.addEventListener('click', () => switchWallet(w.id));
+    container.appendChild(btn);
+  });
+}
+
+async function switchWallet(id) {
+  if (_walletSwitching) return;
+  const alreadyActive = document.querySelector(`.w-tab[data-id="${id}"]`)?.classList.contains('active');
+  if (alreadyActive) return;
+  _walletSwitching = true;
+  document.querySelectorAll('.w-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.id === id);
+  });
+  try {
+    const r = await fetch('/api/wallets/switch', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({id}),
+    });
+    const data = await r.json();
+    if (data.error) {
+      console.error('Switch wallet error:', data.error);
+      await fetchWallets();
+      return;
+    }
+    await loadAll();
+  } catch (e) {
+    console.error('switchWallet fetch error:', e);
+    await fetchWallets();
+  } finally {
+    _walletSwitching = false;
+  }
+}
+
+/* ── Data loading ────────────────────────────────── */
+async function loadAll() {
+  await fetchWallets();
+  document.getElementById('last-updated').textContent = 'updating...';
+  startCountdown();
+
+  // Load state/stats/balance immediately (fast), health separately (slow ~10s)
+  try {
+    const [stateRes, statsRes, balRes] = await Promise.all([
+      fetch('/api/state').then(r => r.json()),
+      fetch('/api/stats').then(r => r.json()),
+      fetch('/api/balance').then(r => r.json()),
+    ]);
+    renderPositions(stateRes);
+    renderProtoBar(stateRes.protocol_summary || {});
+    renderStats(statsRes);
+    renderBalance(balRes);
+    updateConcSlots(stateRes);
+  } catch (e) {
+    console.error('loadAll failed:', e);
+  }
+
+  document.getElementById('last-updated').textContent = `updated ${now8()}`;
+
+  // Health + briefing + logs + history run independently — don't block UI
+  loadHealth();
+  loadBriefing();
+  loadActionLog();
+  loadRuleLog();
+  loadHistory();
+  loadDustCount();
+}
+
+/* ── History ─────────────────────────────────────── */
+function renderHistory(data) {
+  const el    = document.getElementById('history-content');
+  const count = document.getElementById('history-count');
+  const rows  = data.rows || [];
+  count.textContent = rows.length ? `(${rows.length})` : '';
+  if (!rows.length) {
+    el.innerHTML = '<div class="hist-empty">No closed positions yet</div>';
+    return;
+  }
+  const typeMap = { borrow: { cls: 'pill-borrow', lbl: 'BORROW' }, lp: { cls: 'pill-lp', lbl: 'LP' }, lend: { cls: 'pill-lend', lbl: 'LEND' }, vote: { cls: 'pill-vote', lbl: 'VOTE' } };
+  el.innerHTML = rows.map(r => {
+    const t = typeMap[r.type] || typeMap.lend;
+    const txHref = r.tx_hash ? `https://basescan.org/tx/${r.tx_hash}` : '#';
+    return `<div class="hist-entry">
+      <span class="hist-date">${r.entry_date}</span>
+      <span class="type-pill ${t.cls}">${t.lbl}</span>
+      <span class="hist-name">${r.display_name}</span>
+      <span class="hist-token">${r.token}</span>
+      <span class="hist-usd">$${Number(r.usd_est||5).toFixed(2)}</span>
+      <a class="tx-link" href="${txHref}" target="_blank" style="font-size:12px;color:var(--muted)">${r.tx_hash ? r.tx_hash.slice(0,8)+'...' : '—'}</a>
+    </div>`;
+  }).join('');
+}
+
+async function loadHistory() {
+  try {
+    const data = await fetch('/api/history').then(r => r.json());
+    renderHistory(data);
+  } catch (e) {
+    document.getElementById('history-content').innerHTML = '<div class="hist-empty" style="color:var(--red)">Load error</div>';
+  }
+}
+
+let _healthCountdownTimer = null;
+let _healthCountdown = 0;
+
+function _startHealthCountdown(seconds) {
+  clearInterval(_healthCountdownTimer);
+  _healthCountdown = seconds;
+  const el = document.getElementById('health-next-refresh');
+  _healthCountdownTimer = setInterval(() => {
+    _healthCountdown--;
+    if (_healthCountdown <= 0) {
+      clearInterval(_healthCountdownTimer);
+      if (el) el.textContent = '';
+    } else {
+      if (el) el.textContent = `· next in ${_healthCountdown}s`;
+    }
+  }, 1000);
+}
+
+async function loadHealth() {
+  const el  = document.getElementById('health-content');
+  const tag = document.getElementById('health-cache-tag');
+  el.innerHTML = '<div class="health-empty">Checking health...</div>';
+  try {
+    const data = await fetch('/api/health').then(r => r.json());
+    renderHealth(data);
+    const ttl = data.cache_ttl || 120;
+    _startHealthCountdown(ttl);
+  } catch (e) {
+    el.innerHTML = '<div class="health-empty" style="color:var(--red)">Health check error</div>';
+    tag.textContent = '';
+    console.error('loadHealth failed:', e);
+  }
+}
+
+/* ── Sweep → ETH ────────────────────────────────── */
+/* ── Sweep (two-step: click once = CONFIRM?, click again = execute) ── */
+let _sweepPending = null;
+document.getElementById('btn-sweep').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-sweep');
+  if (!_sweepPending) {
+    _sweepPending = setTimeout(() => {
+      _sweepPending = null;
+      if (btn && !btn.disabled) { btn.style.background = ''; btn.style.borderColor = ''; btn.textContent = '↺ SWEEP → ETH'; }
+    }, 5000);
+    btn.style.background  = 'rgba(255,68,68,.15)';
+    btn.style.borderColor = '#ff4444';
+    btn.textContent = 'CONFIRM SWEEP?';
+    return;
+  }
+  clearTimeout(_sweepPending);
+  _sweepPending = null;
+  btn.style.background  = '';
+  btn.style.borderColor = '';
+  btn.disabled = true;
+  btn.textContent = '↺ SWEEPING...';
+  try {
+    const res  = await fetch('/api/sweep', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      btn.textContent = '✓ SWEEP STARTED';
+      setTimeout(() => { btn.disabled = false; btn.textContent = '↺ SWEEP → ETH'; loadAll(); }, 4000);
+    } else {
+      btn.disabled = false;
+      btn.textContent = '↺ SWEEP → ETH';
+      btn.title = data.error || 'Error';
+    }
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = '↺ SWEEP → ETH';
+    btn.title = 'Network error';
+  }
+});
+
+/* ── Emergency close ─────────────────────────────── */
+document.getElementById('btn-emergency').addEventListener('click', () => {
+  document.getElementById('pin-input').value = '';
+  document.getElementById('pin-error').textContent = '';
+  document.getElementById('pin-modal').classList.add('visible');
+  setTimeout(() => document.getElementById('pin-input').focus(), 50);
+});
+
+document.getElementById('pin-cancel').addEventListener('click', () => {
+  document.getElementById('pin-modal').classList.remove('visible');
+});
+
+document.getElementById('pin-confirm').addEventListener('click', doEmergencyClose);
+document.getElementById('pin-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doEmergencyClose();
+});
+
+async function doEmergencyClose() {
+  const pin = document.getElementById('pin-input').value;
+  const errEl = document.getElementById('pin-error');
+  errEl.textContent = '';
+  try {
+    const res = await fetch('/api/emergency_close', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin }),
+    });
+    const data = await res.json();
+    if (res.ok && data.ok) {
+      errEl.style.color = 'var(--green)';
+      errEl.textContent = 'Emergency close initiated. Closing all positions...';
+      setTimeout(() => {
+        document.getElementById('pin-modal').classList.remove('visible');
+        errEl.style.color = '';
+        loadAll();
+      }, 2500);
+    } else {
+      errEl.style.color = 'var(--red)';
+      errEl.textContent = data.error || 'Failed';
+    }
+  } catch (e) {
+    errEl.textContent = 'Network error';
+  }
+}
+
+/* ── Manual refresh ──────────────────────────────── */
+document.getElementById('btn-refresh').addEventListener('click', loadAll);
+
+/* ── Withdraw single position (two-step: click once = CONFIRM?, click again = execute) ── */
+const _withdrawPending = {};
+async function doWithdrawPosition(posId, platformName) {
+  const btn = document.getElementById(`wbtn-${posId}`);
+  if (!btn) return;
+
+  // Step 1: first click → ask for confirmation inline
+  if (!_withdrawPending[posId]) {
+    _withdrawPending[posId] = setTimeout(() => {
+      delete _withdrawPending[posId];
+      if (btn && !btn.disabled) { btn.style.background = ''; btn.style.borderColor = ''; btn.textContent = '⬇ WITHDRAW'; }
+    }, 5000);
+    btn.style.background   = 'rgba(255,68,68,.2)';
+    btn.style.borderColor  = '#ff4444';
+    btn.textContent = 'CONFIRM?';
+    return;
+  }
+
+  // Step 2: second click within 5s → execute
+  clearTimeout(_withdrawPending[posId]);
+  delete _withdrawPending[posId];
+
+  btn.disabled = true;
+  btn.style.background  = '';
+  btn.style.borderColor = '';
+  btn.textContent = '...';
+
+  try {
+    const res  = await fetch('/api/withdraw_position', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({position_id: posId}),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      btn.textContent = '✓ STARTED';
+      setTimeout(() => loadAll(), 15000);
+    } else {
+      btn.disabled = false;
+      btn.textContent = '⬇ WITHDRAW';
+      btn.title = data.error || 'Error';
+    }
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = '⬇ WITHDRAW';
+    btn.title = 'Network error';
+  }
+}
+
+/* ── Reroll ALL ──────────────────────────────────── */
+document.getElementById('btn-reroll-all').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-reroll-all');
+  btn.disabled = true;
+  btn.textContent = '...';
+  try {
+    const res  = await fetch('/api/reroll_all', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      btn.textContent = `✓ ${data.message}`;
+      loadBriefing();
+      loadRuleLog();
+      setTimeout(() => { btn.disabled = false; btn.textContent = '↻ REROLL ALL'; }, 3000);
+    } else {
+      alert('Reroll All failed: ' + (data.error || 'unknown'));
+      btn.disabled = false;
+      btn.textContent = '↻ REROLL ALL';
+    }
+  } catch (e) {
+    alert('Network error');
+    btn.disabled = false;
+    btn.textContent = '↻ REROLL ALL';
+  }
+});
+
+/* ── Add to Plan ─────────────────────────────────── */
+document.getElementById('btn-add-to-plan').addEventListener('click', () => {
+  document.getElementById('add-to-plan-pin').value = '';
+  document.getElementById('add-to-plan-error').textContent = '';
+  document.getElementById('add-to-plan-modal').classList.add('visible');
+  setTimeout(() => document.getElementById('add-to-plan-pin').focus(), 50);
+});
+
+document.getElementById('add-to-plan-cancel').addEventListener('click', () => {
+  document.getElementById('add-to-plan-modal').classList.remove('visible');
+});
+
+document.getElementById('add-to-plan-confirm').addEventListener('click', doAddToPlan);
+document.getElementById('add-to-plan-pin').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doAddToPlan();
+});
+
+async function doAddToPlan() {
+  const pin   = document.getElementById('add-to-plan-pin').value;
+  const errEl = document.getElementById('add-to-plan-error');
+  errEl.textContent = '';
+  try {
+    const res  = await fetch('/api/add_to_plan', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({pin}),
+    });
+    const data = await res.json();
+    if (res.ok && data.ok) {
+      errEl.style.color = 'var(--green)';
+      errEl.textContent = (data.display_name || data.platform) + ' @ ' + data.time_bkk + ' BKK — scheduled';
+      const btn = document.getElementById('btn-add-to-plan');
+      btn.textContent = '✓ ADDED';
+      btn.disabled = true;
+      setTimeout(() => {
+        document.getElementById('add-to-plan-modal').classList.remove('visible');
+        errEl.style.color = '';
+        btn.textContent = '+ ADD TO PLAN';
+        btn.disabled = false;
+        loadBriefing();
+      }, 3000);
+    } else {
+      errEl.style.color = 'var(--red)';
+      errEl.textContent = data.error || 'Failed';
+    }
+  } catch (e) {
+    errEl.textContent = 'Network error';
+  }
+}
+
+/* ── Dust count badge ────────────────────────────── */
+async function loadDustCount() {
+  try {
+    const data  = await fetch('/api/dust_positions').then(r => r.json());
+    const badge = document.getElementById('dust-badge');
+    const btn   = document.getElementById('btn-dust');
+    const count = data.count || 0;
+    if (count > 0) {
+      badge.textContent    = count;
+      badge.style.display  = 'flex';
+      btn.title = data.positions.map(p => `#${p.id} ${p.platform} $${Number(p.usd_est).toFixed(4)}`).join('\n');
+    } else {
+      badge.style.display = 'none';
+      btn.title = 'No dust positions';
+    }
+  } catch (e) { /* non-critical */ }
+}
+
+/* ── Clear Dust (two-step) ───────────────────────── */
+let _dustPending = null;
+document.getElementById('btn-dust').addEventListener('click', async () => {
+  const btn   = document.getElementById('btn-dust');
+  const badge = document.getElementById('dust-badge');
+  const count = parseInt(badge.textContent || '0', 10);
+
+  if (!_dustPending) {
+    // First click: show confirmation
+    _dustPending = setTimeout(() => {
+      _dustPending = null;
+      if (btn && !btn.disabled) {
+        btn.style.background  = '';
+        btn.style.borderColor = '';
+        btn.childNodes[0].textContent = '🧹 CLEAR DUST';
+      }
+    }, 5000);
+    btn.style.background  = 'rgba(255,68,68,.15)';
+    btn.style.borderColor = '#ff4444';
+    btn.childNodes[0].textContent = count > 0 ? `CONFIRM? (${count} pos)` : 'CONFIRM? (scan first)';
+    return;
+  }
+
+  // Second click: execute
+  clearTimeout(_dustPending);
+  _dustPending = null;
+  btn.style.background  = '';
+  btn.style.borderColor = '';
+  btn.disabled = true;
+  btn.childNodes[0].textContent = 'CLEARING...';
+
+  try {
+    const res  = await fetch('/api/clear_dust', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      btn.childNodes[0].textContent = '✓ STARTED';
+      // Poll every 10s — positions will disappear as they're closed
+      let polls = 0;
+      const poll = setInterval(async () => {
+        polls++;
+        await loadAll();
+        const freshDust = await fetch('/api/dust_positions').then(r => r.json());
+        if (freshDust.count === 0 || polls >= 30) {
+          clearInterval(poll);
+          btn.disabled = false;
+          btn.childNodes[0].textContent = '🧹 CLEAR DUST';
+        }
+      }, 10000);
+    } else {
+      btn.disabled = false;
+      btn.childNodes[0].textContent = '🧹 CLEAR DUST';
+      btn.title = data.error || 'Error';
+    }
+  } catch (e) {
+    btn.disabled = false;
+    btn.childNodes[0].textContent = '🧹 CLEAR DUST';
+    btn.title = 'Network error';
+  }
+});
+
+/* ── Settings Summary Panel ─────────────────────── */
+let _cachedSettings = null;
+
+async function loadCfgPanel() {
+  try {
+    const r = await fetch('/api/settings');
+    _cachedSettings = await r.json();
+    _renderCfgPanel(_cachedSettings);
+  } catch(e) {
+    document.getElementById('cfg-tiers').textContent = 'server offline';
+  }
+}
+
+function _renderCfgPanel(cfg) {
+  if (!cfg) return;
+  const t = cfg.usd_tiers || [];
+  document.getElementById('cfg-tiers').textContent =
+    t.map(x => `${Math.round(x.weight*100)}% $${x.min}-${x.max}`).join(' | ') || '—';
+  document.getElementById('cfg-ethmin').textContent     = (cfg.eth_min ?? '—') + ' ETH';
+  document.getElementById('cfg-usdc').textContent       = '$' + (cfg.usdc_retain_usd ?? '—');
+  document.getElementById('cfg-weth').textContent       = (cfg.weth_retain_eth ?? '—') + ' ETH';
+  const exp = cfg.expiry_days || {};
+  document.getElementById('cfg-exp-lend').textContent   = `${(exp.lend||[3,5])[0]}-${(exp.lend||[3,5])[1]}d`;
+  document.getElementById('cfg-exp-lp').textContent     = `${(exp.lp||[3,5])[0]}-${(exp.lp||[3,5])[1]}d`;
+  document.getElementById('cfg-exp-borrow').textContent = `${(exp.borrow||[3,7])[0]}-${(exp.borrow||[3,7])[1]}d`;
+  document.getElementById('cfg-exp-vote').textContent   = `${(exp.vote||[7,14])[0]}-${(exp.vote||[7,14])[1]}d`;
+}
+
+function updateConcSlots(stateData) {
+  if (!stateData) return;
+  const counts = stateData.category_counts || {};
+  const maxc   = stateData.max_concurrent  || (_cachedSettings && _cachedSettings.max_concurrent) || {lp:5,lend:6,borrow:4};
+  [['lp','conc-lp'],['lend','conc-lend'],['borrow','conc-borrow']].forEach(([cat, elId]) => {
+    const cur = counts[cat] || 0;
+    const lim = maxc[cat]   || '?';
+    const el  = document.getElementById(elId);
+    if (!el) return;
+    el.textContent = `${cur}/${lim}`;
+    el.className   = cur >= lim ? 'at-cap' : (cur >= lim - 1 ? 'near-cap' : 'ok-cap');
+  });
+}
+
+/* ── Agent Log Terminal ──────────────────────────── */
+let _logRefreshTimer = null;
+const LOG_REFRESH_MS = 10000;
+
+function _colorizeLogLine(line) {
+  const esc = line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  if (/ERROR|FAIL|failed|crash/i.test(line))   return `<span class="log-line-error">${esc}</span>`;
+  if (/WARNING|WARN|BLOCKED|RECOVERY/i.test(line)) return `<span class="log-line-warn">${esc}</span>`;
+  if (/\[OK\]|Opened|Withdrew|done|PASS|complete/i.test(line)) return `<span class="log-line-ok">${esc}</span>`;
+  return `<span class="log-line-info">${esc}</span>`;
+}
+
+async function loadAgentLog() {
+  try {
+    const data = await fetch('/api/agent_log').then(r => r.json());
+    const el   = document.getElementById('log-terminal');
+    const html = data.lines.map(_colorizeLogLine).join('<br>');
+    el.innerHTML = html || '<span style="color:var(--muted)">(empty)</span>';
+    const autoscroll = document.getElementById('log-autoscroll').checked;
+    if (autoscroll) el.scrollTop = el.scrollHeight;
+    const now = new Date();
+    document.getElementById('log-ticker').textContent =
+      `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  } catch(e) {
+    document.getElementById('log-terminal').innerHTML =
+      `<span class="log-line-error">Error loading log: ${e.message}</span>`;
+  }
+}
+
+function _startLogTimer() {
+  if (_logRefreshTimer) clearInterval(_logRefreshTimer);
+  _logRefreshTimer = setInterval(loadAgentLog, LOG_REFRESH_MS);
+}
+
+document.getElementById('btn-log-refresh').addEventListener('click', loadAgentLog);
+
+/* ── Init ────────────────────────────────────────── */
+loadAll();
+loadCfgPanel();
+loadAgentLog();
+_startLogTimer();
+
+/* ── Settings Modal ──────────────────────────────── */
+const settingsModal  = document.getElementById('settings-modal');
+const settingsError  = document.getElementById('settings-error');
+const weightSumDisp  = document.getElementById('weight-sum-display');
+
+function _settingsFields() {
+  return {
+    t1Min:      document.getElementById('t1-min'),
+    t1Max:      document.getElementById('t1-max'),
+    t1W:        document.getElementById('t1-w'),
+    t2Min:      document.getElementById('t2-min'),
+    t2Max:      document.getElementById('t2-max'),
+    t2W:        document.getElementById('t2-w'),
+    t3Min:      document.getElementById('t3-min'),
+    t3Max:      document.getElementById('t3-max'),
+    t3W:        document.getElementById('t3-w'),
+    ethMin:     document.getElementById('eth-min'),
+    usdcRetain: document.getElementById('usdc-retain'),
+    wethRetain: document.getElementById('weth-retain'),
+    expLendMin: document.getElementById('exp-lend-min'),
+    expLendMax: document.getElementById('exp-lend-max'),
+    expLpMin:   document.getElementById('exp-lp-min'),
+    expLpMax:   document.getElementById('exp-lp-max'),
+    expBorMin:  document.getElementById('exp-borrow-min'),
+    expBorMax:  document.getElementById('exp-borrow-max'),
+    expVotMin:  document.getElementById('exp-vote-min'),
+    expVotMax:  document.getElementById('exp-vote-max'),
+    mcLp:       document.getElementById('mc-lp'),
+    mcLend:     document.getElementById('mc-lend'),
+    mcBorrow:   document.getElementById('mc-borrow'),
+  };
+}
+
+function _fillSettings(cfg) {
+  const f = _settingsFields();
+  const t = cfg.usd_tiers || [];
+  if (t[0]) { f.t1Min.value = t[0].min; f.t1Max.value = t[0].max; f.t1W.value = Math.round(t[0].weight * 100); }
+  if (t[1]) { f.t2Min.value = t[1].min; f.t2Max.value = t[1].max; f.t2W.value = Math.round(t[1].weight * 100); }
+  if (t[2]) { f.t3Min.value = t[2].min; f.t3Max.value = t[2].max; f.t3W.value = Math.round(t[2].weight * 100); }
+  f.ethMin.value     = cfg.eth_min         ?? 0.005;
+  f.usdcRetain.value = cfg.usdc_retain_usd ?? 10;
+  f.wethRetain.value = cfg.weth_retain_eth ?? 0.005;
+  const exp = cfg.expiry_days || {};
+  f.expLendMin.value = (exp.lend  || [3,5])[0];
+  f.expLendMax.value = (exp.lend  || [3,5])[1];
+  f.expLpMin.value   = (exp.lp    || [3,5])[0];
+  f.expLpMax.value   = (exp.lp    || [3,5])[1];
+  f.expBorMin.value  = (exp.borrow|| [3,7])[0];
+  f.expBorMax.value  = (exp.borrow|| [3,7])[1];
+  f.expVotMin.value  = (exp.vote  || [7,14])[0];
+  f.expVotMax.value  = (exp.vote  || [7,14])[1];
+  const mc = cfg.max_concurrent || {};
+  f.mcLp.value     = mc.lp     ?? 5;
+  f.mcLend.value   = mc.lend   ?? 6;
+  f.mcBorrow.value = mc.borrow ?? 4;
+  _updateWeightSum();
+}
+
+function _updateWeightSum() {
+  const f = _settingsFields();
+  const total = (parseFloat(f.t1W.value)||0) + (parseFloat(f.t2W.value)||0) + (parseFloat(f.t3W.value)||0);
+  weightSumDisp.textContent = `Total: ${total}%`;
+  weightSumDisp.className = 'settings-weight-sum ' + (total === 100 ? 'ok' : 'bad');
+}
+
+['t1-w','t2-w','t3-w'].forEach(id => {
+  document.getElementById(id).addEventListener('input', _updateWeightSum);
+});
+
+function _buildPayload() {
+  const f = _settingsFields();
+  const w1 = parseFloat(f.t1W.value) / 100;
+  const w2 = parseFloat(f.t2W.value) / 100;
+  const w3 = parseFloat(f.t3W.value) / 100;
+  return {
+    usd_tiers: [
+      { label: 'low',  min: parseFloat(f.t1Min.value), max: parseFloat(f.t1Max.value), weight: w1 },
+      { label: 'mid',  min: parseFloat(f.t2Min.value), max: parseFloat(f.t2Max.value), weight: w2 },
+      { label: 'high', min: parseFloat(f.t3Min.value), max: parseFloat(f.t3Max.value), weight: w3 },
+    ],
+    eth_min:         parseFloat(f.ethMin.value),
+    usdc_retain_usd: parseFloat(f.usdcRetain.value),
+    weth_retain_eth: parseFloat(f.wethRetain.value),
+    expiry_days: {
+      lend:   [parseInt(f.expLendMin.value), parseInt(f.expLendMax.value)],
+      lp:     [parseInt(f.expLpMin.value),   parseInt(f.expLpMax.value)],
+      borrow: [parseInt(f.expBorMin.value),  parseInt(f.expBorMax.value)],
+      vote:   [parseInt(f.expVotMin.value),  parseInt(f.expVotMax.value)],
+    },
+    max_concurrent: {
+      lp:     parseInt(f.mcLp.value),
+      lend:   parseInt(f.mcLend.value),
+      borrow: parseInt(f.mcBorrow.value),
+    },
+  };
+}
+
+async function openSettings() {
+  settingsError.textContent = '';
+  try {
+    const r   = await fetch('/api/settings');
+    const cfg = await r.json();
+    _fillSettings(cfg);
+  } catch(e) {
+    settingsError.textContent = 'Failed to load settings: ' + e.message;
+  }
+  settingsModal.style.display = 'flex';
+}
+
+function closeSettings() {
+  settingsModal.style.display = 'none';
+  settingsError.textContent   = '';
+}
+
+document.getElementById('btn-settings').addEventListener('click', openSettings);
+document.getElementById('btn-settings-cfg').addEventListener('click', openSettings);
+document.getElementById('settings-cancel').addEventListener('click', closeSettings);
+settingsModal.addEventListener('click', e => { if (e.target === settingsModal) closeSettings(); });
+
+document.getElementById('settings-save').addEventListener('click', async () => {
+  settingsError.textContent = '';
+  const payload = _buildPayload();
+  try {
+    const r   = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const res = await r.json();
+    if (res.error) {
+      settingsError.textContent = '✗ ' + res.error;
+      return;
+    }
+    _cachedSettings = payload;
+    _renderCfgPanel(payload);
+    settingsError.style.color = 'var(--green)';
+    settingsError.textContent = '✓ Saved — takes effect on next agent action';
+    setTimeout(() => {
+      settingsError.style.color = '';
+      settingsError.textContent = '';
+      closeSettings();
+    }, 1800);
+  } catch(e) {
+    settingsError.textContent = 'Save failed: ' + e.message;
+  }
+});
+
+document.getElementById('settings-reset').addEventListener('click', async () => {
+  settingsError.textContent = '';
+  try {
+    const r   = await fetch('/api/settings/reset', { method: 'POST' });
+    const res = await r.json();
+    if (res.settings) {
+      _cachedSettings = res.settings;
+      _fillSettings(res.settings);
+      _renderCfgPanel(res.settings);
+      settingsError.style.color = 'var(--amber)';
+      settingsError.textContent = '↺ Reset to defaults';
+      setTimeout(() => { settingsError.style.color = ''; settingsError.textContent = ''; }, 1500);
+    }
+  } catch(e) {
+    settingsError.textContent = 'Reset failed: ' + e.message;
+  }
+});
+</script>
+</body>
+</html>
