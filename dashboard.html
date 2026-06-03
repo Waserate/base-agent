@@ -79,6 +79,18 @@
       background: rgba(0,212,255,.08);
       box-shadow: 0 0 6px rgba(0,212,255,.25);
     }
+    .w-tab.paused { opacity: 0.45; }
+    .w-tab-group { display: flex; align-items: center; gap: 2px; }
+    .w-toggle {
+      font-size: 9px; line-height: 1;
+      background: transparent; border: 1px solid var(--border);
+      border-radius: 3px; padding: 3px 6px; cursor: pointer;
+      color: var(--muted); transition: all .15s;
+    }
+    .w-toggle.running { color: var(--green); border-color: var(--green); }
+    .w-toggle.running:hover { background: rgba(0,255,136,.1); }
+    .w-toggle.stopped { color: var(--muted); border-color: var(--border); }
+    .w-toggle.stopped:hover { color: var(--cyan); border-color: var(--cyan); }
 
     /* ── Grid layouts ── */
     .top-grid {
@@ -1637,12 +1649,26 @@ function renderWalletTabs(wallets) {
   if (!container) return;
   container.innerHTML = '';
   wallets.forEach(w => {
-    const btn = document.createElement('button');
-    btn.className = 'w-tab' + (w.is_active ? ' active' : '');
-    btn.textContent = w.name;
-    btn.dataset.id = w.id;
-    btn.addEventListener('click', () => switchWallet(w.id));
-    container.appendChild(btn);
+    const group = document.createElement('div');
+    group.className = 'w-tab-group';
+
+    const tab = document.createElement('button');
+    tab.className = 'w-tab' + (w.is_active ? ' active' : '') + (w.active === false ? ' paused' : '');
+    tab.textContent = w.name;
+    tab.dataset.id = w.id;
+    tab.addEventListener('click', () => switchWallet(w.id));
+
+    const isRunning = w.active !== false;
+    const tog = document.createElement('button');
+    tog.className = 'w-toggle ' + (isRunning ? 'running' : 'stopped');
+    tog.textContent = isRunning ? '■' : '▶';
+    tog.title = isRunning ? 'Stop wallet' : 'Start wallet';
+    tog.dataset.id = w.id;
+    tog.addEventListener('click', (e) => { e.stopPropagation(); toggleWallet(w.id); });
+
+    group.appendChild(tab);
+    group.appendChild(tog);
+    container.appendChild(group);
   });
 }
 
@@ -1672,6 +1698,21 @@ async function switchWallet(id) {
     await fetchWallets();
   } finally {
     _walletSwitching = false;
+  }
+}
+
+async function toggleWallet(id) {
+  try {
+    const r = await fetch('/api/wallets/toggle', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({id}),
+    });
+    const data = await r.json();
+    if (data.error) { console.error('toggleWallet error:', data.error); return; }
+    await fetchWallets();
+  } catch (e) {
+    console.error('toggleWallet fetch error:', e);
   }
 }
 

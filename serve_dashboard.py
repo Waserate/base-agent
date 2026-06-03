@@ -1277,6 +1277,23 @@ class Handler(SimpleHTTPRequestHandler):
             self._json({'ok': True, 'wallet_id': wallet_id,
                         'address': os.environ.get('WALLET_ADDRESS', '')})
             return
+
+        if path == '/api/wallets/toggle':
+            length = int(self.headers.get('Content-Length', 0))
+            try:
+                body = json.loads(self.rfile.read(length)) if length else {}
+            except Exception:
+                body = {}
+            wallet_id = body.get('id')
+            if not wallet_id:
+                self._json({'error': 'id required'}, 400)
+                return
+            ok, new_active, err = _wallet_mgr.toggle_active(wallet_id)
+            if not ok:
+                self._json({'error': err}, 400)
+                return
+            self._json({'ok': True, 'id': wallet_id, 'active': new_active})
+            return
         else:
             self.send_error(404)
 

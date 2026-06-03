@@ -79,3 +79,27 @@ def switch_context(wallet_id: str) -> tuple:
         pass  # non-fatal
 
     return True, None
+
+
+def toggle_active(wallet_id: str) -> tuple:
+    """
+    Flip active flag for wallet_id in wallets.json.
+    Returns (ok: bool, new_active: bool|None, error: str|None).
+    """
+    try:
+        with open(WALLETS_FILE) as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return False, None, 'wallets.json not found'
+
+    wallets = data.get('wallets', [])
+    target = next((w for w in wallets if w['id'] == wallet_id), None)
+    if target is None:
+        return False, None, f'Wallet {wallet_id!r} not found'
+
+    target['active'] = not target.get('active', True)
+    data['wallets'] = wallets
+    with open(WALLETS_FILE, 'w') as f:
+        json.dump(data, f, indent=2)
+
+    return True, target['active'], None
