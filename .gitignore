@@ -1,7 +1,48 @@
+# ── Secrets (NEVER commit) ────────────────────────
 .env
 wallets.json
-state.db
-state*.db
+
+# ── Databases ─────────────────────────────────────
+*.db
+
+# ── Runtime dirs ──────────────────────────────────
 logs/
+cache/
+backups/
+
+# ── Debug / one-off scripts ───────────────────────
+debug_*.py
+_debug_*.py
+_check_*.py
+_close_*.py
+_count.py
+_discover_*.py
+_fluid_vault_info*.py
+_liquidation_analysis.py
+_position_values.py
+_real_positions.py
+_recover_*.py
+_restore_*.py
+_scan_onchain.py
+_test_borrow_all.py
+_test_fl_borrow_all.py
+insert_ifond_*.py
+fix_*.py
+delete_pos*.py
+migrate_*.py
+close_uni_lp_pos.py
+deposit_uni_lp.py
+find_token_id.py
+run_ifond_reconcile.py
+run_aave_live_test.py
+debug_dbs.py
+convert_stable_residuals.py
+
+# ── Personal notes ────────────────────────────────
+ERRORS.md
+
+# ── Python cache ──────────────────────────────────
 __pycache__/
 *.pyc
+*.pyo
+.pytest_cache/

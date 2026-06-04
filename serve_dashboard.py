@@ -9,8 +9,11 @@ import state
 import wallet_manager as _wallet_mgr
 
 PORT = 8766
-HEALTH_CACHE_TTL = 120   # 2 minutes
-BALANCE_CACHE_TTL = 60   # 1 minute
+HEALTH_CACHE_TTL  = 120   # 2 minutes
+BALANCE_CACHE_TTL = 60    # 1 minute
+
+DASHBOARD_PIN       = os.getenv('DASHBOARD_PIN',       '0000')  # action PIN (add/reroll)
+DASHBOARD_ADMIN_PIN = os.getenv('DASHBOARD_ADMIN_PIN', '0000')  # emergency/withdraw PIN
 
 _health_cache  = {'ts': 0.0, 'data': None}
 _balance_cache = {'ts': 0.0, 'data': None}
@@ -31,6 +34,41 @@ def _clear_all_caches():
         _ex._PRICE_CACHE.clear()
     except Exception:
         pass
+
+# ── Add-wallet setup status (in-memory, single slot) ─────────────────────────
+_setup_status = {'in_progress': False, 'wallet_id': None, 'step': '', 'error': None}
+_setup_lock_obj = threading.Lock()
+
+
+def _run_wallet_setup(wallet_id: str):
+    """Background thread: init DB + on-chain reconcile for newly added wallet."""
+    global _setup_status
+    try:
+        print(f'[add_wallet] switching context to {wallet_id}...')
+        _setup_status['step'] = 'switching_context'
+        ok, err = _wallet_mgr.switch_context(wallet_id)
+        if not ok:
+            raise RuntimeError(f'switch_context: {err}')
+
+        _setup_status['step'] = 'init_db'
+        print(f'[add_wallet] init DB state_{wallet_id}.db ...')
+        state.init_db()
+
+        _setup_status['step'] = 'reconciling'
+        print(f'[add_wallet] on-chain recovery for {wallet_id} ...')
+        import onchain_recovery
+        result = onchain_recovery.reconcile(verbose=True)
+
+        recovered = result.get('added', 0) if isinstance(result, dict) else 0
+        print(f'[add_wallet] setup complete — {recovered} positions recovered')
+        _setup_status['step'] = 'done'
+    except Exception as e:
+        print(f'[add_wallet] setup error: {e}')
+        _setup_status['error'] = str(e)
+        _setup_status['step']  = 'error'
+    finally:
+        _setup_status['in_progress'] = False
+
 
 _CFG = None
 def _cfg():
@@ -485,6 +523,204 @@ def build_state():
     }
 
 
+def build_all_state() -> dict:
+    """
+    Aggregate active positions from ALL wallets with live USD estimates.
+    Switches context per wallet and calls build_state() to reuse all live USD logic.
+    Injects wallet_id + wallet_name into each position row.
+    Returns protocol_summary aggregated across all wallets.
+    """
+    import importlib as _il, sys as _sys
+    today        = date.today()
+    all_wallets  = _wallet_mgr.load_wallets()
+    original_wid = os.environ.get('WALLET_ID', 'default')
+    combined     = []
+
+    for w in all_wallets:
+        wid   = w['id']
+        wname = w.get('name', wid)
+        try:
+            ok, err = _wallet_mgr.switch_context(wid)
+            if not ok:
+                continue
+            for _m in ('executor', 'state'):
+                if _m in _sys.modules:
+                    _il.reload(_sys.modules[_m])
+            # Clear live USD cache so prices are fetched fresh for this wallet
+            _LIVE_USD_CACHE.clear()
+
+            wallet_state = build_state()
+            for pos in (wallet_state.get('active_positions') or []):
+                pos['wallet_id']   = wid
+                pos['wallet_name'] = wname
+                combined.append(pos)
+        except Exception:
+            continue
+
+    # Restore original context
+    try:
+        _wallet_mgr.switch_context(original_wid)
+        for _m in ('executor', 'state'):
+            if _m in _sys.modules:
+                _il.reload(_sys.modules[_m])
+    except Exception:
+        pass
+    _clear_all_caches()
+
+    # Aggregate protocol_summary across all wallets
+    proto_summary: dict = {}
+    for p in combined:
+        proto = p.get('protocol') or ''
+        if proto == 'aav':
+            proto = 'aave'
+        if proto not in proto_summary:
+            proto_summary[proto] = {'usd': 0.0, 'count': 0}
+        proto_summary[proto]['usd']   = round(proto_summary[proto]['usd'] + (p.get('usd_est') or 0), 2)
+        proto_summary[proto]['count'] += 1
+
+    total_usd = sum(p.get('usd_est') or 0 for p in combined)
+    return {
+        'wallet':           'ALL',
+        'active_positions': combined,
+        'active_count':     len(combined),
+        'total_usd':        round(total_usd, 2),
+        'protocol_summary': proto_summary,
+        'generated_at':     today.isoformat(),
+    }
+
+
+def do_reconcile_all() -> dict:
+    """Run onchain_recovery.reconcile() for ALL wallets. Returns per-wallet results."""
+    import importlib as _il, sys as _sys
+    original_wid = os.environ.get('WALLET_ID', 'default')
+    results: dict = {}
+
+    for w in _wallet_mgr.load_wallets():
+        wid = w['id']
+        try:
+            _wallet_mgr.switch_context(wid)
+            for _m in ('executor', 'state', 'onchain_recovery'):
+                if _m in _sys.modules:
+                    _il.reload(_sys.modules[_m])
+            import state as _st
+            _st.init_db()
+            import onchain_recovery as _ocr
+            r = _ocr.reconcile(verbose=False)
+            results[wid] = r
+        except Exception as e:
+            results[wid] = {'error': str(e)}
+
+    # Restore original context + clear caches
+    try:
+        _wallet_mgr.switch_context(original_wid)
+        for _m in ('executor', 'state'):
+            if _m in _sys.modules:
+                _il.reload(_sys.modules[_m])
+    except Exception:
+        pass
+    _clear_all_caches()
+    return {'ok': True, 'results': results}
+
+
+def _with_wallet_context(wid: str, fn):
+    """Switch to wallet wid, run fn(), restore original context. Returns fn() result."""
+    import importlib as _il, sys as _sys
+    original_wid = os.environ.get('WALLET_ID', 'default')
+    try:
+        ok, err = _wallet_mgr.switch_context(wid)
+        if not ok:
+            return {'error': f'Cannot switch to wallet {wid}: {err}'}
+        for _m in ('executor', 'state'):
+            if _m in _sys.modules:
+                _il.reload(_sys.modules[_m])
+        return fn()
+    except Exception as e:
+        return {'error': str(e)}
+    finally:
+        try:
+            _wallet_mgr.switch_context(original_wid)
+            for _m in ('executor', 'state'):
+                if _m in _sys.modules:
+                    _il.reload(_sys.modules[_m])
+        except Exception:
+            pass
+        _clear_all_caches()
+
+
+def do_plan_all_add() -> dict:
+    """Add one action to EVERY wallet's plan. Returns per-wallet results."""
+    results = {}
+    for w in _wallet_mgr.load_wallets():
+        wid = w['id']
+        results[wid] = _with_wallet_context(wid, do_add_to_plan)
+    ok_count = sum(1 for r in results.values() if r.get('ok'))
+    return {'ok': True, 'results': results,
+            'message': f'Added to {ok_count}/{len(results)} wallets'}
+
+
+def do_plan_all_reroll() -> dict:
+    """Reroll all pending actions for EVERY wallet. Returns per-wallet results."""
+    import importlib as _il, sys as _sys
+    all_results = {}
+
+    for w in _wallet_mgr.load_wallets():
+        wid = w['id']
+        def _reroll_wallet():
+            from daily_briefing import load_plan
+            plan = load_plan()
+            if not plan:
+                return {'ok': False, 'error': 'No plan today', 'results': []}
+            pending = [a for a in plan if not a.get('done', False)]
+            if not pending:
+                return {'ok': True, 'results': [], 'message': 'All done — nothing to reroll'}
+            results = []
+            for action in pending:
+                res = do_reroll(action['idx'])
+                results.append({'idx': action['idx'], 'ok': res.get('ok', False),
+                                'new_platform': res.get('new_platform'),
+                                'error': res.get('error')})
+            ok_count = sum(1 for r in results if r['ok'])
+            return {'ok': True, 'results': results,
+                    'message': f'Rerolled {ok_count}/{len(results)} actions'}
+        all_results[wid] = _with_wallet_context(wid, _reroll_wallet)
+
+    return {'ok': True, 'results': all_results}
+
+
+def build_all_plan() -> dict:
+    """
+    Aggregate today's plan from ALL wallet plan files (plan_{wid}.json).
+    Injects wallet_id + wallet_name into each action.
+    Actions from multiple wallets are merged, sorted by time_bkk.
+    """
+    cache_dir   = os.path.join(os.path.dirname(__file__), 'cache')
+    today       = date.today().isoformat()
+    all_wallets = _wallet_mgr.load_wallets()
+    combined    = []
+
+    for w in all_wallets:
+        wid   = w['id']
+        wname = w.get('name', wid)
+        path  = os.path.join(cache_dir, f'plan_{wid}.json')
+        try:
+            with open(path) as f:
+                data = json.load(f)
+            if data.get('date') != today:
+                continue
+            for a in (data.get('actions') or []):
+                action = dict(a)
+                action['wallet_id']   = wid
+                action['wallet_name'] = wname
+                combined.append(action)
+        except FileNotFoundError:
+            continue
+        except Exception:
+            continue
+
+    combined.sort(key=lambda x: x.get('time_bkk', '00:00'))
+    return {'date': today, 'actions': combined}
+
+
 def build_history(limit=30):
     state.init_db()
     cfg = _cfg()
@@ -557,6 +793,25 @@ def build_health(force: bool = False):
     return data
 
 
+def build_all_health() -> dict:
+    """Collect health data from ALL wallets. Returns per-wallet health results."""
+    wallets = _wallet_mgr.load_wallets()
+    results_by_wallet = {}
+    for w in wallets:
+        wid   = w['id']
+        wname = w.get('name', wid)
+        try:
+            health_data = _with_wallet_context(wid, lambda: build_health())
+            results_by_wallet[wid] = {
+                'wallet_name': wname,
+                'results':     health_data.get('results', []),
+                'from_cache':  health_data.get('from_cache', False),
+            }
+        except Exception as e:
+            results_by_wallet[wid] = {'wallet_name': wname, 'results': [], 'error': str(e)}
+    return {'wallets': results_by_wallet}
+
+
 def _count_closed_by_type():
     cfg = _cfg()
     cats = {'LP': 0, 'LEND': 0, 'BORROW': 0, 'VOTE': 0,
@@ -602,12 +857,19 @@ def build_stats():
     }
 
 
-RULE_LOG_FILE   = os.path.join(os.path.dirname(__file__), 'cache', 'rule_log.json')
-ACTION_LOG_FILE = os.path.join(os.path.dirname(__file__), 'cache', 'action_log.json')
+_CACHE_DIR = os.path.join(os.path.dirname(__file__), 'cache')
+
+def _get_rule_log_file() -> str:
+    wid = os.environ.get('WALLET_ID', 'default')
+    return os.path.join(_CACHE_DIR, f'rule_log_{wid}.json')
+
+def _get_action_log_file() -> str:
+    wid = os.environ.get('WALLET_ID', 'default')
+    return os.path.join(_CACHE_DIR, f'action_log_{wid}.json')
 
 def build_rule_log():
     try:
-        with open(RULE_LOG_FILE) as f:
+        with open(_get_rule_log_file()) as f:
             entries = json.load(f)
         for e in entries:
             if 'current' in e:
@@ -631,7 +893,7 @@ def do_add_to_plan() -> dict:
     import random as _random
 
     try:
-        from daily_briefing import load_plan, PLAN_FILE
+        from daily_briefing import load_plan, get_plan_file
         import rule_engine, executor
         import state as _state
 
@@ -733,7 +995,7 @@ def do_add_to_plan() -> dict:
         plan.sort(key=lambda x: x['time_bkk'])
 
         import json as _json
-        with open(PLAN_FILE, 'w') as f:
+        with open(get_plan_file(), 'w') as f:
             _json.dump({'date': today.isoformat(), 'actions': plan}, f, indent=2)
 
         return {
@@ -751,7 +1013,7 @@ def do_add_to_plan() -> dict:
 
 def build_action_log():
     try:
-        with open(ACTION_LOG_FILE) as f:
+        with open(_get_action_log_file()) as f:
             entries = json.load(f)
         return {'entries': list(reversed(entries)), 'count': len(entries)}
     except FileNotFoundError:
@@ -771,7 +1033,7 @@ def do_reroll(idx: int) -> dict:
     import random as _random
 
     try:
-        from daily_briefing import load_plan, PLAN_FILE
+        from daily_briefing import load_plan, get_plan_file
         import rule_engine, executor
 
         plan = load_plan()
@@ -888,7 +1150,7 @@ def do_reroll(idx: int) -> dict:
         })
 
         import json as _json
-        with open(PLAN_FILE, 'w') as f:
+        with open(get_plan_file(), 'w') as f:
             _json.dump({'date': today.isoformat(), 'actions': plan}, f, indent=2)
 
         return {'ok': True, 'plan': plan, 'new_platform': new_platform, 'new_time': time_bkk}
@@ -905,7 +1167,7 @@ def _write_rule_log(original, current, attempt, ok, reason, outcome=None, contex
         'attempt': attempt, 'ok': ok, 'reason': reason, 'outcome': outcome,
     }
     try:
-        log_file = os.path.join(os.path.dirname(__file__), 'cache', 'rule_log.json')
+        log_file = _get_rule_log_file()
         try:
             with open(log_file) as f:
                 entries = json.load(f)
@@ -1027,10 +1289,16 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         path = urlparse(self.path).path
         try:
-            if path == '/api/state':
+            if path == '/api/state/all':
+                self._json(build_all_state())
+            elif path == '/api/plan/all':
+                self._json(build_all_plan())
+            elif path == '/api/state':
                 self._json(build_state())
             elif path == '/api/health':
                 self._json(build_health())
+            elif path == '/api/health/all':
+                self._json(build_all_health())
             elif path == '/api/health/refresh':
                 self._json(build_health(force=True))
             elif path == '/api/stats':
@@ -1063,6 +1331,13 @@ class Handler(SimpleHTTPRequestHandler):
                     pw['is_active'] = (w['address'].lower() == active_id)
                     result.append(pw)
                 self._json({'wallets': result})
+            elif path == '/api/wallets/setup_status':
+                self._json({
+                    'in_progress': _setup_status['in_progress'],
+                    'wallet_id':   _setup_status['wallet_id'],
+                    'step':        _setup_status['step'],
+                    'error':       _setup_status['error'],
+                })
             elif path == '/api/agent_log':
                 log_path = os.path.join(os.path.dirname(__file__), 'logs', 'agent.log')
                 try:
@@ -1092,6 +1367,11 @@ class Handler(SimpleHTTPRequestHandler):
             self._json(do_reroll(idx))
             return
 
+        if path == '/api/reconcile':
+            # Synchronous — client waits (~2-5 min for all wallets)
+            self._json(do_reconcile_all())
+            return
+
         if path == '/api/sweep':
             import subprocess, sys
             subprocess.Popen(
@@ -1117,6 +1397,66 @@ class Handler(SimpleHTTPRequestHandler):
                 cwd=os.path.dirname(os.path.abspath(__file__))
             )
             self._json({'ok': True, 'message': f'Withdrawing position #{pos_id} — check CMD for progress'})
+            return
+
+        # ── ALL-wallet plan endpoints ──────────────────────────────────────
+        if path == '/api/plan/all/add':
+            length = int(self.headers.get('Content-Length', 0))
+            try:
+                body = json.loads(self.rfile.read(length)) if length else {}
+            except Exception:
+                body = {}
+            if str(body.get('pin', '')) != DASHBOARD_PIN:
+                self._json({'error': 'Invalid PIN'}, 403)
+                return
+            self._json(do_plan_all_add())
+            return
+
+        if path == '/api/plan/all/reroll':
+            self._json(do_plan_all_reroll())
+            return
+
+        if path == '/api/reroll/wallet':
+            length = int(self.headers.get('Content-Length', 0))
+            try:
+                body = json.loads(self.rfile.read(length)) if length else {}
+            except Exception:
+                body = {}
+            wallet_id = body.get('wallet_id')
+            idx       = body.get('idx')
+            if not wallet_id or not isinstance(idx, int):
+                self._json({'error': 'wallet_id and idx (int) required'}, 400)
+                return
+            self._json(_with_wallet_context(wallet_id, lambda: do_reroll(idx)))
+            return
+
+        if path == '/api/cancel_plan/wallet':
+            length = int(self.headers.get('Content-Length', 0))
+            try:
+                body = json.loads(self.rfile.read(length)) if length else {}
+            except Exception:
+                body = {}
+            wallet_id = body.get('wallet_id')
+            idx       = body.get('idx')
+            if not wallet_id or not isinstance(idx, int):
+                self._json({'error': 'wallet_id and idx (int) required'}, 400)
+                return
+            def _cancel():
+                from daily_briefing import load_plan, get_plan_file
+                import json as _json
+                plan = load_plan()
+                if not plan:
+                    return {'error': 'No plan for today'}
+                target = next((a for a in plan if a['idx'] == idx), None)
+                if target is None:
+                    return {'error': f'Action #{idx} not found'}
+                if target.get('done', False):
+                    return {'error': f'Action #{idx} already done'}
+                plan = [a for a in plan if a['idx'] != idx]
+                with open(get_plan_file(), 'w') as f:
+                    _json.dump({'date': date.today().isoformat(), 'actions': plan}, f, indent=2)
+                return {'ok': True, 'removed_idx': idx}
+            self._json(_with_wallet_context(wallet_id, _cancel))
             return
 
         if path == '/api/reroll_all':
@@ -1149,7 +1489,7 @@ class Handler(SimpleHTTPRequestHandler):
                 body = json.loads(self.rfile.read(length)) if length else {}
             except Exception:
                 body = {}
-            if str(body.get('pin', '')) != '1234':
+            if str(body.get('pin', '')) != DASHBOARD_PIN:
                 self._json({'error': 'Invalid PIN'}, 403)
                 return
             import subprocess, sys
@@ -1166,7 +1506,7 @@ class Handler(SimpleHTTPRequestHandler):
                 body = json.loads(self.rfile.read(length)) if length else {}
             except Exception:
                 body = {}
-            if str(body.get('pin', '')) != '1234':
+            if str(body.get('pin', '')) != DASHBOARD_PIN:
                 self._json({'error': 'Invalid PIN'}, 403)
                 return
             self._json(do_add_to_plan())
@@ -1208,7 +1548,7 @@ class Handler(SimpleHTTPRequestHandler):
                 self._json({'error': 'idx required (int)'}, 400)
                 return
             try:
-                from daily_briefing import load_plan, PLAN_FILE
+                from daily_briefing import load_plan, get_plan_file
                 plan = load_plan()
                 if not plan:
                     self._json({'error': 'No plan for today'})
@@ -1222,7 +1562,7 @@ class Handler(SimpleHTTPRequestHandler):
                     return
                 plan = [a for a in plan if a['idx'] != idx]
                 import json as _json
-                with open(PLAN_FILE, 'w') as f:
+                with open(get_plan_file(), 'w') as f:
                     _json.dump({'date': date.today().isoformat(), 'actions': plan}, f, indent=2)
                 self._json({'ok': True, 'removed_idx': idx})
             except Exception as e:
@@ -1242,7 +1582,7 @@ class Handler(SimpleHTTPRequestHandler):
             except Exception:
                 body = {}
 
-            if str(body.get('pin', '')) != '363638':
+            if str(body.get('pin', '')) != DASHBOARD_ADMIN_PIN:
                 self._json({'error': 'Invalid PIN'}, 403)
                 return
 
@@ -1294,6 +1634,76 @@ class Handler(SimpleHTTPRequestHandler):
                 return
             self._json({'ok': True, 'id': wallet_id, 'active': new_active})
             return
+
+        if path == '/api/wallets/delete':
+            length = int(self.headers.get('Content-Length', 0))
+            try:
+                body = json.loads(self.rfile.read(length)) if length else {}
+            except Exception:
+                self._json({'error': 'Invalid JSON'}, 400)
+                return
+            wallet_id = body.get('id', '').strip()
+            pin       = body.get('pin', '').strip()
+            if not wallet_id or not pin:
+                self._json({'error': 'id and pin required'}, 400)
+                return
+            ok, err = _wallet_mgr.remove_wallet(wallet_id, pin)
+            if not ok:
+                self._json({'error': err}, 400)
+                return
+            # If deleted wallet was active context, switch to first remaining
+            remaining = _wallet_mgr.load_wallets()
+            if os.environ.get('WALLET_ID') == wallet_id and remaining:
+                _wallet_mgr.switch_context(remaining[0]['id'])
+                _clear_all_caches()
+            sep = '=' * 55
+            print(f'\n{sep}')
+            print(f'  WALLET REMOVED: {wallet_id}')
+            print(f'  (state DB kept on disk)')
+            print(f'{sep}')
+            self._json({'ok': True, 'wallet_id': wallet_id,
+                        'remaining': len(remaining)})
+            return
+
+        if path == '/api/wallets/add':
+            length = int(self.headers.get('Content-Length', 0))
+            try:
+                body = json.loads(self.rfile.read(length)) if length else {}
+            except Exception:
+                self._json({'error': 'Invalid JSON'}, 400)
+                return
+            name        = body.get('name', '').strip()
+            address     = body.get('address', '').strip()
+            private_key = body.get('private_key', '').strip()
+            delete_pin  = body.get('delete_pin', '').strip()
+            if not name or not address:
+                self._json({'error': 'name and address required'}, 400)
+                return
+            with _setup_lock_obj:
+                if _setup_status['in_progress']:
+                    self._json({'error': f'Setup in progress for wallet "{_setup_status["wallet_id"]}" — wait until complete'}, 409)
+                    return
+                entry, err = _wallet_mgr.add_wallet(name, address, private_key, delete_pin)
+                if err:
+                    self._json({'error': err}, 400)
+                    return
+                _setup_status['in_progress'] = True
+                _setup_status['wallet_id']   = entry['id']
+                _setup_status['step']        = 'starting'
+                _setup_status['error']       = None
+            sep = '=' * 55
+            print(f'\n{sep}')
+            print(f'  NEW WALLET: {entry["name"]}  ({entry["id"]})')
+            print(f'  Address  : {entry["address"]}')
+            print(f'  DB       : {entry["state_db"]}')
+            print(f'  On-chain recovery starting...')
+            print(f'{sep}')
+            t = threading.Thread(target=_run_wallet_setup, args=(entry['id'],), daemon=True)
+            t.start()
+            self._json({'ok': True, 'wallet_id': entry['id'],
+                        'message': 'Wallet added — on-chain recovery running in background'})
+            return
+
         else:
             self.send_error(404)
 

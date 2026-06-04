@@ -1,4 +1,4 @@
-import json, os, importlib, sys
+import json, os, importlib, sys, re
 
 WALLETS_FILE = os.path.join(os.path.dirname(__file__), 'wallets.json')
 
@@ -63,9 +63,10 @@ def switch_context(wallet_id: str) -> tuple:
         return False, f'Wallet {wallet_id!r} not found in wallets.json'
 
     base_dir = os.path.dirname(__file__)
-    os.environ['WALLET_ADDRESS']    = w['address']
+    os.environ['WALLET_ID']          = wallet_id
+    os.environ['WALLET_ADDRESS']     = w['address']
     os.environ['WALLET_PRIVATE_KEY'] = w.get('private_key', '')
-    os.environ['STATE_DB_PATH']     = os.path.join(base_dir, w.get('state_db', f'state_{wallet_id}.db'))
+    os.environ['STATE_DB_PATH']      = os.path.join(base_dir, w.get('state_db', f'state_{wallet_id}.db'))
 
     for mod_name in ('executor', 'state'):
         if mod_name in sys.modules:
@@ -77,6 +78,104 @@ def switch_context(wallet_id: str) -> tuple:
         save_wallets(wallets, last_active=wallet_id)
     except Exception:
         pass  # non-fatal
+
+    return True, None
+
+
+def get_id_for_address(address: str) -> str | None:
+    """Find wallet id matching address (case-insensitive). Returns None if not found."""
+    addr_lower = address.lower()
+    for w in load_wallets():
+        if w['address'].lower() == addr_lower:
+            return w['id']
+    return None
+
+
+def _slugify(name: str) -> str:
+    slug = re.sub(r'[^a-z0-9]+', '_', name.lower()).strip('_')
+    return slug or 'wallet'
+
+
+def add_wallet(name: str, address: str, private_key: str, delete_pin: str = '') -> tuple:
+    """
+    Validate + append new wallet to wallets.json.
+    Returns (entry: dict, error: str|None).
+    """
+    from web3 import Web3
+
+    name        = (name or '').strip()
+    address     = (address or '').strip()
+    private_key = (private_key or '').strip()
+    delete_pin  = (delete_pin or '').strip()
+
+    if not name:
+        return None, 'Name required'
+    if not address:
+        return None, 'Address required'
+    if not delete_pin:
+        return None, 'Delete PIN required'
+    if not Web3.is_address(address):
+        return None, f'Invalid address: {address}'
+
+    address = Web3.to_checksum_address(address)
+
+    existing = load_wallets()
+
+    if any(w['address'].lower() == address.lower() for w in existing):
+        return None, 'Address already registered'
+
+    base_id      = _slugify(name)
+    existing_ids = {w['id'] for w in existing}
+    wid, suffix  = base_id, 2
+    while wid in existing_ids:
+        wid = f'{base_id}_{suffix}'
+        suffix += 1
+
+    entry = {
+        'id':          wid,
+        'name':        name,
+        'address':     address,
+        'private_key': private_key,
+        'active':      True,
+        'state_db':    f'state_{wid}.db',
+        'avatar_path': 'natsu_pensive.png',
+        'delete_pin':  delete_pin,
+    }
+    existing.append(entry)
+    save_wallets(existing)
+    return entry, None
+
+
+def remove_wallet(wallet_id: str, pin: str) -> tuple:
+    """
+    Remove wallet from wallets.json after PIN verification.
+    Returns (ok: bool, error: str|None).
+    State DB file is kept on disk (not deleted).
+    """
+    try:
+        with open(WALLETS_FILE) as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return False, 'wallets.json not found'
+
+    wallets = data.get('wallets', [])
+    target  = next((w for w in wallets if w['id'] == wallet_id), None)
+    if target is None:
+        return False, f'Wallet {wallet_id!r} not found'
+
+    stored_pin = target.get('delete_pin', '')
+    if not stored_pin or pin.strip() != stored_pin:
+        return False, 'Wrong PIN'
+
+    data['wallets'] = [w for w in wallets if w['id'] != wallet_id]
+
+    # If last_active pointed to deleted wallet, reset to first remaining
+    remaining = data['wallets']
+    if data.get('last_active') == wallet_id:
+        data['last_active'] = remaining[0]['id'] if remaining else None
+
+    with open(WALLETS_FILE, 'w') as f:
+        json.dump(data, f, indent=2)
 
     return True, None
 

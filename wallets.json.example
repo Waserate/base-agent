@@ -1,0 +1,11 @@
+[
+  {
+    "id": "wallet1",
+    "name": "My Wallet",
+    "address": "0xYourWalletAddressHere",
+    "private_key": "0xYourPrivateKeyHere",
+    "state_db": "state_wallet1.db",
+    "active": true,
+    "delete_pin": "your_delete_pin_here"
+  }
+]

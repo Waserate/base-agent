@@ -1,0 +1,1943 @@
+{
+  "tokens": {
+    "USDC": {
+      "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "decimals": 6,
+      "is_stable_usd": true,
+      "position_amount": 5
+    },
+    "USDS": {
+      "address": "0x820C137fa70C8691f0e44Dc420a5e53c168921Dc",
+      "decimals": 18,
+      "is_stable_usd": true,
+      "position_amount": 5
+    },
+    "WETH": {
+      "address": "0x4200000000000000000000000000000000000006",
+      "decimals": 18,
+      "position_amount": 0.0025
+    },
+    "cbETH": {
+      "address": "0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22",
+      "decimals": 18,
+      "position_amount": 0.0025,
+      "_note": "Coinbase Wrapped ETH on Base"
+    },
+    "wstETH": {
+      "address": "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452",
+      "decimals": 18,
+      "chainlink_feed": "0xa669E5272E60f78299F4824495cE01a3923f4380",
+      "feed_type": "eth_rate",
+      "feed_decimals": 18,
+      "position_amount": 0.002
+    },
+    "cbBTC": {
+      "address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "decimals": 8,
+      "chainlink_feed": "0x64c911996D3c6aC71f9b455B1E8E7266BcbD848F",
+      "feed_type": "usd",
+      "feed_decimals": 8,
+      "position_amount": 6.8e-05
+    },
+    "EURC": {
+      "address": "0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42",
+      "decimals": 6,
+      "chainlink_feed": "0xDAe398520e2B67cd3f27aeF9Cf14D93D927f8250",
+      "feed_type": "usd",
+      "feed_decimals": 8,
+      "position_amount": 4
+    },
+    "sUSDS": {
+      "address": "0x5875eEE11Cf8398102FdAd704C9E96607675467a",
+      "decimals": 6,
+      "is_stable_usd": true,
+      "position_amount": 5,
+      "_note": "decimals=6 so position_amount=5 means 5_000_000 = $5 USDC to spend via PSM"
+    },
+    "AERO": {
+      "address": "0x940181a94A35A4569E4529A3CDfB74e38FD98631",
+      "decimals": 18,
+      "position_amount": 2.5,
+      "_note": "Aerodrome native token — position_amount=2.5 AERO (~$2.50 at ~$1/AERO)"
+    },
+    "VIRTUAL": {
+      "address": "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b",
+      "decimals": 18,
+      "position_amount": 7,
+      "_note": "Virtuals Protocol token on Base — position_amount=7 VIRTUAL (~$5 at ~$0.72/VIRTUAL)"
+    },
+    "DOLA": {
+      "address": "0x4621b7A9c75199271F773Ebd9A499dbd165c3191",
+      "decimals": 18,
+      "is_stable_usd": true,
+      "position_amount": 5,
+      "_note": "Inverse Finance DOLA stablecoin on Base"
+    },
+    "USDz": {
+      "address": "0x04D5ddf5f3a8939889F11E97f8c4BB48317F1938",
+      "decimals": 18,
+      "is_stable_usd": true,
+      "position_amount": 5,
+      "_note": "Anzen Finance USDz stablecoin on Base"
+    },
+    "USDT": {
+      "address": "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
+      "decimals": 6,
+      "is_stable_usd": true,
+      "position_amount": 5,
+      "_note": "Bridged USDT on Base — used in Uniswap v3 USDT/WETH and USDT/USDC pools"
+    },
+    "CAKE": {
+      "address": "0x3055913c90Fcc1A6CE9a358911721eEb942013A1",
+      "decimals": 18,
+      "position_amount": 2.0,
+      "_note": "PancakeSwap CAKE OFT on Base. price via slot0 CAKE/WETH pool (fee=10000)"
+    },
+    "MORPHO": {
+      "address": "0xBAa5CC21fd487B8Fcc2F632f3F4E8D37262a0842",
+      "decimals": 18,
+      "position_amount": 2.5,
+      "_note": "Morpho Protocol token on Base. price via slot0 Uni3 USDC/MORPHO pool (fee=10000)"
+    },
+    "cbXRP": {
+      "address": "0xcb585250f852C6c6bf90434AB21A00f02833a4af",
+      "decimals": 6,
+      "position_amount": 3.8,
+      "_note": "Coinbase wrapped XRP on Base. price via slot0 Cake3 WETH/cbXRP pool (fee=500)"
+    },
+    "weETH": {
+      "address": "0x04C0599Ae5A44757c0af6F9eC3b93da8976c150A",
+      "decimals": 18,
+      "position_amount": 0.0024,
+      "_note": "ether.fi Wrapped ETH on Base. LST priced ~= ETH. position_amount=0.0024 weETH (~$4.9 at $2031/ETH)"
+    }
+  },
+  "aave": {
+    "pool":          "0xA238Dd80C259a72e81d7e4664a9801593F98d1c5",
+    "data_provider": "0x0F43731EB8d45A581f4a36DD74F5f358bc90C73A",
+    "atoken_usdc":   "0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB",
+    "atoken_weth":   "0xD4a0e0b9149BCee3C920d2E00b5dE09138fd8bb7",
+    "atoken_cbbtc":  "0xBdb9300b7CDE636d9cD4AFF00f6F009fFBBc8EE6",
+    "atoken_wsteth": "0x99CBC45ea5bb7eF3a5BC08FB1B7E56bB2442Ef0D",
+    "atoken_eurc":   "0x90DA57E0A6C0d166Bf15764E03b83745Dc90025B",
+    "atoken_weeth":  "0x7C307e128efA31F540F2E2d976C995E0B65F51F6",
+    "vdebt_usdc":    "0x59dca05b6c26dbd64b5381374aAaC5CD05644C28",
+    "vdebt_weth":    "0x24e6e0795b3c7c71D965fCc4f371803d1c1DcA1E",
+    "vdebt_cbbtc":   "0x05e08702028de6AaD395DC6478b554a56920b9AD",
+    "vdebt_eurc":    "0x03D01595769333174036832e18fA2f17C74f8161"
+  },
+  "dex": {
+    "chainlink_eth_usd": "0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70",
+    "uniswap_router": "0x2626664c2603336E57B271c5C0b26F421741e481",
+    "uniswap_quoter_v2": "0x3d4e44Eb1374240CE5F1B871ab261CD16335B76a",
+    "pancake_router": "0x1b81D678ffb9C0263b24A97847620C99d213eB14",
+    "pancake_quoter_v2": "0xB048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997",
+    "spark_psm3": "0x1601843c5E9bC251A3272907010AFa41Fa18347E",
+    "aerodrome_router": "0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43",
+    "aerodrome_factory": "0x420DD381b31aEf6683db6B902084cB0FFECe40Da",
+    "aerodrome_ve": "0xeBf418Fe2512e7E6bd9b87a8F0f294aCDC67e6B4",
+    "aerodrome_voter": "0x16613524e02ad97eDfeF371bC883F2F5d6C480A5",
+    "uniswap_nfpm": "0x03a520b32c04bf3beef7beb72e919cf822ed34f1",
+    "uniswap_factory_v3": "0x33128a8fC17869897dcE68Ed026d694621f6FDfD",
+    "pancake_nfpm": "0x46A15B0b27311cedF172AB29E4f4766fbE7F4364",
+    "pancake_factory_v3": "0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865",
+    "cake_weth_v3_pool": "0x03c33a2fc0d444a5b61e573f9e1a285357a694fc",
+    "morpho_usdc_uni_pool": "0x2043B296fFC6b2d3bf4A3F3167d2Afb3B0FBdbEE",
+    "cbxrp_weth_cake_pool": "0x170b6bFc071426aaB7C81AE12383219facBb6B6A",
+    "weeth_weth_v3_pool": "0xB1419a7f9e8c6e434B1D05377e0Dbc4154E3DE78"
+  },
+  "platforms": {
+    "compound_usdc": {
+      "name": "Compound v3",
+      "token": "USDC",
+      "address": "0xb125E6687d4313864e53df431d5425969c15Eb2F",
+      "type": "comet",
+      "expiry_days": [
+        3,
+        5
+      ]
+    },
+    "moonwell_usdc": {
+      "name": "Moonwell",
+      "token": "USDC",
+      "address": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",
+      "type": "ctoken",
+      "expiry_days": [
+        3,
+        5
+      ]
+    },
+    "moonwell_eth": {
+      "name": "Moonwell",
+      "token": "WETH",
+      "token_address": "0x4200000000000000000000000000000000000006",
+      "address": "0x628ff693426583D9a7FB391E54366292F509D457",
+      "type": "ctoken",
+      "expiry_days": [
+        3,
+        5
+      ]
+    },
+    "moonwell_eurc": {
+      "name": "Moonwell",
+      "token": "EURC",
+      "token_address": "0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42",
+      "address": "0xb682c840B5F4FC58B20769E691A6fa1305A501a2",
+      "type": "ctoken",
+      "expiry_days": [
+        3,
+        5
+      ]
+    },
+    "moonwell_cbbtc": {
+      "name": "Moonwell",
+      "token": "cbBTC",
+      "token_address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "address": "0xF877ACaFA28c19b96727966690b2f44d35aD5976",
+      "type": "ctoken",
+      "expiry_days": [
+        3,
+        5
+      ]
+    },
+    "fluid_usdc": {
+      "name": "Fluid",
+      "token": "USDC",
+      "address": "0xf42f5795D9ac7e9D757dB633D693cD548Cfd9169",
+      "type": "erc4626",
+      "expiry_days": [
+        3,
+        5
+      ]
+    },
+    "fluid_eth": {
+      "name": "Fluid",
+      "token": "WETH",
+      "token_address": "0x4200000000000000000000000000000000000006",
+      "address": "0x9272D6153133175175Bc276512B2336BE3931CE9",
+      "type": "erc4626",
+      "expiry_days": [
+        3,
+        5
+      ]
+    },
+    "fluid_wsteth": {
+      "name": "Fluid",
+      "token": "wstETH",
+      "token_address": "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452",
+      "address": "0x896E39f0E9af61ECA9dD2938E14543506ef2c2b5",
+      "type": "erc4626",
+      "expiry_days": [
+        3,
+        5
+      ]
+    },
+    "spark_susds": {
+      "name": "Spark sUSDS",
+      "token": "sUSDS",
+      "token_address": "0x5875eEE11Cf8398102FdAd704C9E96607675467a",
+      "address": "0x5875eEE11Cf8398102FdAd704C9E96607675467a",
+      "type": "psm_hold",
+      "expiry_days": [
+        5,
+        10
+      ],
+      "_note": "sUSDS on Base has no ERC4626 deposit — buy via PSM3 USDC->sUSDS, hold, sell via PSM3"
+    },
+    "morpho_usdc": {
+      "name": "Morpho Moonwell USDC",
+      "token": "USDC",
+      "address": "0xc1256Ae5FF1cf2719D4937adb3bbCCab2E00A2Ca",
+      "type": "erc4626",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "MetaMorpho ERC4626 — Moonwell Flagship USDC (mwUSDC), ~$9M TVL"
+    },
+    "morpho_eth": {
+      "name": "Morpho Moonwell ETH",
+      "token": "WETH",
+      "token_address": "0x4200000000000000000000000000000000000006",
+      "address": "0xa0E430870c4604CcfC7B38Ca7845B1FF653D0ff1",
+      "type": "erc4626",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "MetaMorpho ERC4626 — Moonwell Flagship ETH (mwETH), ~4,259 ETH TVL"
+    },
+    "morpho_eurc": {
+      "name": "Morpho Moonwell EURC",
+      "token": "EURC",
+      "token_address": "0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42",
+      "address": "0xf24608E0CCb972b0b0f4A6446a0BBf58c701a026",
+      "type": "erc4626",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "MetaMorpho ERC4626 — Moonwell Flagship EURC (mwEURC), ~$1.24M TVL"
+    },
+    "morpho_cbbtc": {
+      "name": "Morpho Moonwell cbBTC",
+      "token": "cbBTC",
+      "token_address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "address": "0x543257eF2161176D7C8cD90BA65C2d4CaEF5a796",
+      "type": "erc4626",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "MetaMorpho ERC4626 — Moonwell Frontier cbBTC (mwcbBTC), ~17 BTC TVL"
+    },
+    "beefy_usdc_steakhouse": {
+      "name": "Beefy USDC Steakhouse",
+      "token": "USDC",
+      "address": "0xF1C55b6E063ee90A33FFE62deBe618962bae021e",
+      "type": "beefy_single",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "Moo Morpho Base Steakhouse High Yield USDC — 5.3% APY, want=USDC"
+    },
+    "beefy_usdc_gauntlet": {
+      "name": "Beefy USDC Gauntlet",
+      "token": "USDC",
+      "address": "0x83152eE78d8f20Bba134A5FF000D551355Ce3996",
+      "type": "beefy_single",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "Moo Morpho Base Gauntlet Frontier USDC — 5.0% APY, want=USDC"
+    },
+    "beefy_weth_gauntlet": {
+      "name": "Beefy WETH Gauntlet",
+      "token": "WETH",
+      "token_address": "0x4200000000000000000000000000000000000006",
+      "address": "0x1DA48d1c79D527859ACD341A0B9456b27f4b6f5B",
+      "type": "beefy_single",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "Moo MorphoV2 Base Gauntlet Balanced WETH — 1.6% APY, want=WETH"
+    },
+    "beefy_weth_usdc_vlp": {
+      "name": "Beefy WETH-USDC vLP",
+      "token": "LP",
+      "token0": "WETH",
+      "token0_address": "0x4200000000000000000000000000000000000006",
+      "token1": "USDC",
+      "token1_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "lp_address": "0xcDAC0d6c6C59727a65F871236188350531885C43",
+      "stable": false,
+      "address": "0x09139A80454609B69700836a9eE12Db4b5DBB15f",
+      "type": "beefy_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "Aerodrome v1 WETH/USDC volatile LP wrapped by Beefy — 5.6% APY"
+    },
+    "beefy_usdc_aero_vlp": {
+      "name": "Beefy USDC-AERO vLP",
+      "token": "LP",
+      "token0": "USDC",
+      "token0_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "token1": "AERO",
+      "token1_address": "0x940181a94A35A4569E4529A3CDfB74e38FD98631",
+      "lp_address": "0x6cDcb1C4A4D1C3C6d054b27AC5B77e89eAFb971d",
+      "stable": false,
+      "address": "0xc005B9833deBcF5fe6cc5bC9ba4fD74Bb382ae55",
+      "type": "beefy_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "Aerodrome v1 USDC/AERO volatile LP wrapped by Beefy — 17.1% APY"
+    },
+    "aero_lp_weth_usdc": {
+      "name": "Aerodrome vAMM WETH/USDC",
+      "token": "LP",
+      "token0": "WETH",
+      "token0_address": "0x4200000000000000000000000000000000000006",
+      "token1": "USDC",
+      "token1_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "stable": false,
+      "pool_address": "0xcDAC0d6c6C59727a65F871236188350531885C43",
+      "gauge_address": "0x519BBD1Dd8C6A94C46080E24f316c14Ee758C025",
+      "address": "0xcDAC0d6c6C59727a65F871236188350531885C43",
+      "type": "aero_lp",
+      "expiry_days": [
+        3,
+        5
+      ]
+    },
+    "aero_lp_usdc_aero": {
+      "name": "Aerodrome vAMM USDC/AERO",
+      "token": "LP",
+      "token0": "USDC",
+      "token0_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "token1": "AERO",
+      "token1_address": "0x940181a94A35A4569E4529A3CDfB74e38FD98631",
+      "stable": false,
+      "pool_address": "0x6cDcb1C4A4D1C3C6d054b27AC5B77e89eAFb971d",
+      "gauge_address": "0x4F09bAb2f0E15e2A078A227FE1537665F55b8360",
+      "address": "0x6cDcb1C4A4D1C3C6d054b27AC5B77e89eAFb971d",
+      "type": "aero_lp",
+      "expiry_days": [
+        3,
+        5
+      ]
+    },
+    "aero_lp_weth_aero": {
+      "name": "Aerodrome vAMM WETH/AERO",
+      "token": "LP",
+      "token0": "WETH",
+      "token0_address": "0x4200000000000000000000000000000000000006",
+      "token1": "AERO",
+      "token1_address": "0x940181a94A35A4569E4529A3CDfB74e38FD98631",
+      "stable": false,
+      "pool_address": "0x7f670f78B17dEC44d5Ef68a48740b6f8849cc2e6",
+      "gauge_address": "0x96a24aB830D4ec8b1F6f04Ceac104F1A3b211a01",
+      "address": "0x7f670f78B17dEC44d5Ef68a48740b6f8849cc2e6",
+      "type": "aero_lp",
+      "expiry_days": [
+        3,
+        5
+      ]
+    },
+    "aero_lp_eurc_usdc": {
+      "name": "Aerodrome sAMM EURC/USDC",
+      "token": "LP",
+      "token0": "EURC",
+      "token0_address": "0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42",
+      "token1": "USDC",
+      "token1_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "stable": true,
+      "pool_address": "0xeF0d374FE41fC6dA7f8ED7c56C10A8f2A4f75313",
+      "gauge_address": "0x471F501be92ee5480f3e27DC45Ca86E621F8a995",
+      "address": "0xeF0d374FE41fC6dA7f8ED7c56C10A8f2A4f75313",
+      "type": "aero_lp",
+      "expiry_days": [
+        3,
+        5
+      ]
+    },
+    "aero_lp_weth_cbbtc": {
+      "name": "Aerodrome vAMM WETH/cbBTC",
+      "token": "LP",
+      "token0": "WETH",
+      "token0_address": "0x4200000000000000000000000000000000000006",
+      "token1": "cbBTC",
+      "token1_address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "stable": false,
+      "pool_address": "0x2578365B3dfA7FfE60108e181EFb79FeDdec2319",
+      "gauge_address": "0xAFdEBa12B6a870d6639d043030b4b49F9C7c62BB",
+      "address": "0x2578365B3dfA7FfE60108e181EFb79FeDdec2319",
+      "type": "aero_lp",
+      "expiry_days": [
+        3,
+        5
+      ]
+    },
+    "aero_lp_virtual_weth": {
+      "name": "Aerodrome vAMM VIRTUAL/WETH",
+      "token": "LP",
+      "token0": "VIRTUAL",
+      "token0_address": "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b",
+      "token1": "WETH",
+      "token1_address": "0x4200000000000000000000000000000000000006",
+      "stable": false,
+      "pool_address": "0x21594b992F68495dD28d605834b58889d0a727c7",
+      "gauge_address": "0xBD62Cad65b49b4Ad9C7aa9b8bDB89d63221F7af5",
+      "address": "0x21594b992F68495dD28d605834b58889d0a727c7",
+      "type": "aero_lp",
+      "expiry_days": [
+        3,
+        5
+      ]
+    },
+    "aero_lp_virtual_aero": {
+      "name": "Aerodrome vAMM VIRTUAL/AERO",
+      "token": "LP",
+      "token0": "VIRTUAL",
+      "token0_address": "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b",
+      "token1": "AERO",
+      "token1_address": "0x940181a94A35A4569E4529A3CDfB74e38FD98631",
+      "stable": false,
+      "pool_address": "0x8B49c7eC53Cb4CA3666bB16727FC5C5F6d12226f",
+      "gauge_address": "0x57538a02972c01440113cC7A7Ff8F1d954d01239",
+      "address": "0x8B49c7eC53Cb4CA3666bB16727FC5C5F6d12226f",
+      "type": "aero_lp",
+      "expiry_days": [
+        3,
+        5
+      ]
+    },
+    "aero_lp_usdc_dola": {
+      "name": "Aerodrome sAMM USDC/DOLA",
+      "token": "LP",
+      "token0": "USDC",
+      "token0_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "token1": "DOLA",
+      "token1_address": "0x4621b7A9c75199271F773Ebd9A499dbd165c3191",
+      "stable": true,
+      "pool_address": "0xf213F2D02837012dC0236cC105061e121bB03e37",
+      "gauge_address": "0xCCff5627cd544b4cBb7d048139C1A6b6Bde67885",
+      "address": "0xf213F2D02837012dC0236cC105061e121bB03e37",
+      "type": "aero_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "sAMM USDC/DOLA — TVL ~$345k, gauge ALIVE, stablecoin IL minimal"
+    },
+    "aero_lp_usdc_usdz": {
+      "name": "Aerodrome sAMM USDC/USDz",
+      "token": "LP",
+      "token0": "USDC",
+      "token0_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "token1": "USDz",
+      "token1_address": "0x04D5ddf5f3a8939889F11E97f8c4BB48317F1938",
+      "stable": true,
+      "pool_address": "0x6d0b9C9E92a3De30081563c3657B5258b3fFa38B",
+      "gauge_address": "0xb7E4bBee04285F4B55d0A93b34E5dA95C3a7faf9",
+      "address": "0x6d0b9C9E92a3De30081563c3657B5258b3fFa38B",
+      "type": "aero_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "sAMM USDC/USDz — TVL ~$123k, gauge ALIVE, stablecoin IL minimal"
+    },
+    "aero_lp_wsteth_aero": {
+      "name": "Aerodrome vAMM wstETH/AERO",
+      "token": "LP",
+      "token0": "wstETH",
+      "token0_address": "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452",
+      "token1": "AERO",
+      "token1_address": "0x940181a94A35A4569E4529A3CDfB74e38FD98631",
+      "stable": false,
+      "pool_address": "0x82a0c1a0d4EF0c0cA3cFDA3AD1AA78309Cc6139b",
+      "gauge_address": "0x26D6D4E9e3fAf1C7C19992B1Ca792e4A9ea4F833",
+      "address": "0x82a0c1a0d4EF0c0cA3cFDA3AD1AA78309Cc6139b",
+      "type": "aero_lp",
+      "expiry_days": [
+        3,
+        5
+      ]
+    },
+    "megapot": {
+      "name": "Megapot Lottery",
+      "token": "USDC",
+      "address": "0x3bAe643002069dBCbcd62B1A4eb4C4A397d042a2",
+      "type": "megapot",
+      "ticket_price_usdc": 1,
+      "_note": "1 ticket = $1 USDC. Payment alternates ETH(swap)->USDC | USDC direct. No withdraw."
+    },
+    "uni_lp_weth_usdc_3000": {
+      "name": "Uniswap v3 WETH/USDC 0.3%",
+      "token0": "WETH",
+      "token0_address": "0x4200000000000000000000000000000000000006",
+      "token1": "USDC",
+      "token1_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "pool_address": "0x6c561b446416e1a00e8e93e221854d6ea4171372",
+      "type": "uni_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "TVL $122.9M — highest liquidity WETH/USDC pool on Uniswap v3 Base"
+    },
+    "uni_lp_weth_usdc_500": {
+      "name": "Uniswap v3 WETH/USDC 0.05%",
+      "token0": "WETH",
+      "token0_address": "0x4200000000000000000000000000000000000006",
+      "token1": "USDC",
+      "token1_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "pool_address": "0xd0b53d9277642d899df5c87a3966a349a798f224",
+      "type": "uni_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "TVL $13.4M — 0.05% fee tier WETH/USDC"
+    },
+    "uni_lp_usdc_cbbtc_500": {
+      "name": "Uniswap v3 USDC/cbBTC 0.05%",
+      "token0": "USDC",
+      "token0_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "token1": "cbBTC",
+      "token1_address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "pool_address": "0xfbb6eed8e7aa03b138556eedaf5d271a5e1e43ef",
+      "type": "uni_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "TVL $8.65M — USDC is token0 (lower address than cbBTC)"
+    },
+    "uni_lp_weth_cbbtc_3000": {
+      "name": "Uniswap v3 WETH/cbBTC 0.3%",
+      "token0": "WETH",
+      "token0_address": "0x4200000000000000000000000000000000000006",
+      "token1": "cbBTC",
+      "token1_address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "pool_address": "0x8c7080564b5a792a33ef2fd473fba6364d5495e5",
+      "type": "uni_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "TVL $9.3M — WETH is token0 (lower address than cbBTC)"
+    },
+    "uni_lp_weth_cbbtc_500": {
+      "name": "Uniswap v3 WETH/cbBTC 0.05%",
+      "token0": "WETH",
+      "token0_address": "0x4200000000000000000000000000000000000006",
+      "token1": "cbBTC",
+      "token1_address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "pool_address": "0x7aea2e8a3843516afa07293a10ac8e49906dabd1",
+      "type": "uni_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "TVL $3.1M"
+    },
+    "uni_lp_weth_usdc_100": {
+      "name": "Uniswap v3 WETH/USDC 0.01%",
+      "token0": "WETH",
+      "token0_address": "0x4200000000000000000000000000000000000006",
+      "token1": "USDC",
+      "token1_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "pool_address": "0xb4cb800910b228ed3d0834cf79d697127bbb00e5",
+      "type": "uni_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "TVL $410K — on-chain verified fee=100 (0.01%), research listed as 1% incorrectly"
+    },
+    "uni_lp_weth_usdt_500": {
+      "name": "Uniswap v3 WETH/USDT 0.05%",
+      "token0": "WETH",
+      "token0_address": "0x4200000000000000000000000000000000000006",
+      "token1": "USDT",
+      "token1_address": "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
+      "pool_address": "0xd92e0767473d1e3ff11ac036f2b1db90ad0ae55f",
+      "type": "uni_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "TVL $217K — WETH is token0 (0x42 < 0xfd)"
+    },
+    "uni_lp_usdc_usdt_100": {
+      "name": "Uniswap v3 USDC/USDT 0.01%",
+      "token0": "USDC",
+      "token0_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "token1": "USDT",
+      "token1_address": "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
+      "pool_address": "0xd56da2b74ba826f19015e6b7dd9dae1903e85da1",
+      "type": "uni_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "TVL $182K — USDC is token0 (0x83 < 0xfd)"
+    },
+    "uni_lp_usdc_aero": {
+      "name": "Uniswap v3 USDC/AERO",
+      "token0": "USDC",
+      "token0_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "token1": "AERO",
+      "token1_address": "0x940181a94A35A4569E4529A3CDfB74e38FD98631",
+      "pool_address": "0xe5b5f522e98b5a2baae212d4da66b865b781db97",
+      "type": "uni_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "TVL $151K — USDC is token0 (0x83 < 0x94); fee queried on-chain from pool.fee()"
+    },
+    "uni_lp_eurc_usdc_500": {
+      "name": "Uniswap v3 EURC/USDC 0.05%",
+      "token0": "EURC",
+      "token0_address": "0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42",
+      "token1": "USDC",
+      "token1_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "pool_address": "0x7279c08a36333e12c3fc81747963264c100d66fb",
+      "type": "uni_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "TVL $105K — EURC is token0 (0x60 < 0x83)"
+    },
+    "pancake_lp_weth_usdc_100": {
+      "name": "PancakeSwap v3 WETH/USDC 0.01%",
+      "token0": "WETH",
+      "token0_address": "0x4200000000000000000000000000000000000006",
+      "token1": "USDC",
+      "token1_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "pool_address": "0x72ab388e2e2f6facef59e3c3fa2c4e29011c2d38",
+      "type": "pancake_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "TVL $5.08M — highest volume WETH/USDC pool on PancakeSwap v3 Base"
+    },
+    "pancake_lp_cbbtc_weth_100": {
+      "name": "PancakeSwap v3 WETH/cbBTC 0.01%",
+      "token0": "WETH",
+      "token0_address": "0x4200000000000000000000000000000000000006",
+      "token1": "cbBTC",
+      "token1_address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "pool_address": "0xc211e1f853a898bd1302385ccde55f33a8c4b3f3",
+      "type": "pancake_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "TVL $4.79M — token0=WETH (0x42 < 0xcb)"
+    },
+    "pancake_lp_cbbtc_usdc_100": {
+      "name": "PancakeSwap v3 USDC/cbBTC 0.01%",
+      "token0": "USDC",
+      "token0_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "token1": "cbBTC",
+      "token1_address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "pool_address": "0xb94b22332abf5f89877a14cc88f2abc48c34b3df",
+      "type": "pancake_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "TVL $2.23M — token0=USDC (0x83 < 0xcb)"
+    },
+    "pancake_lp_weth_usdc_500": {
+      "name": "PancakeSwap v3 WETH/USDC 0.05%",
+      "token0": "WETH",
+      "token0_address": "0x4200000000000000000000000000000000000006",
+      "token1": "USDC",
+      "token1_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "pool_address": "0xb775272e537cc670c65dc852908ad47015244eaf",
+      "type": "pancake_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "TVL $1.93M"
+    },
+    "pancake_lp_weth_cbbtc_500": {
+      "name": "PancakeSwap v3 WETH/cbBTC 0.05%",
+      "token0": "WETH",
+      "token0_address": "0x4200000000000000000000000000000000000006",
+      "token1": "cbBTC",
+      "token1_address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "pool_address": "0xd974d59e30054cf1abeded0c9947b0d8baf90029",
+      "type": "pancake_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "TVL $689k"
+    },
+    "pancake_lp_virtual_usdc_500": {
+      "name": "PancakeSwap v3 VIRTUAL/USDC 0.05%",
+      "token0": "VIRTUAL",
+      "token0_address": "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b",
+      "token1": "USDC",
+      "token1_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "pool_address": "0x7cb770d0513c30e0cb45e4899e4a2cbeed6f9830",
+      "type": "pancake_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "TVL $252k — token0=VIRTUAL (0x0b < 0x83)"
+    },
+    "pancake_lp_eurc_usdc_100": {
+      "name": "PancakeSwap v3 EURC/USDC 0.01%",
+      "token0": "EURC",
+      "token0_address": "0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42",
+      "token1": "USDC",
+      "token1_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "pool_address": "0x1ca42c7219f0cb1b67927e26502320cb98f725bd",
+      "type": "pancake_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "TVL $266k — token0=EURC (0x60 < 0x83)"
+    },
+    "pancake_lp_cbbtc_usdc_500": {
+      "name": "PancakeSwap v3 USDC/cbBTC 0.05%",
+      "token0": "USDC",
+      "token0_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "token1": "cbBTC",
+      "token1_address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "pool_address": "0x26e263efdc91f0d3279e2ec2bd58a7ca5c2fce62",
+      "type": "pancake_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "TVL $175k"
+    },
+    "pancake_lp_weth_cbbtc_2500": {
+      "name": "PancakeSwap v3 WETH/cbBTC 0.25%",
+      "token0": "WETH",
+      "token0_address": "0x4200000000000000000000000000000000000006",
+      "token1": "cbBTC",
+      "token1_address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "pool_address": "0x5b3613ef9a535b48e82e2800acb77053dfec93b1",
+      "type": "pancake_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "TVL $210k"
+    },
+    "pancake_lp_cbbtc_usdc_2500": {
+      "name": "PancakeSwap v3 USDC/cbBTC 0.25%",
+      "token0": "USDC",
+      "token0_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "token1": "cbBTC",
+      "token1_address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "pool_address": "0x748bb91fc5f4200302d9a79185bc161260a1b461",
+      "type": "pancake_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "TVL $120k"
+    },
+    "pancake_lp_cake_weth_10000": {
+      "name": "PancakeSwap v3 CAKE/WETH 1%",
+      "token0": "CAKE",
+      "token0_address": "0x3055913c90Fcc1A6CE9a358911721eEb942013A1",
+      "token1": "WETH",
+      "token1_address": "0x4200000000000000000000000000000000000006",
+      "pool_address": "0x03c33a2fc0d444a5b61e573f9e1a285357a694fc",
+      "type": "pancake_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "TVL $110k — token0=CAKE (0x30 < 0x42); fee=10000 (1%); price via slot0"
+    },
+    "pancake_lp_wsteth_weth_100": {
+      "name": "PancakeSwap v3 WETH/wstETH 0.01%",
+      "token0": "WETH",
+      "token0_address": "0x4200000000000000000000000000000000000006",
+      "token1": "wstETH",
+      "token1_address": "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452",
+      "pool_address": "0xbd59a718e60bd868123c6e949c9fd97185efbdb7",
+      "type": "pancake_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "TVL $100k — token0=WETH (0x42 < 0xc1)"
+    },
+    "pancake_lp_weth_usdc_2500": {
+      "name": "PancakeSwap v3 WETH/USDC 0.25%",
+      "token0": "WETH",
+      "token0_address": "0x4200000000000000000000000000000000000006",
+      "token1": "USDC",
+      "token1_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "pool_address": "0xe9d76696f8a35e2e2520e3125875c3af23f1e69c",
+      "type": "pancake_lp",
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "TVL $92k"
+    },
+    "uni_lp_usdc_morpho_10000": {
+      "name": "Uniswap v3 USDC/MORPHO 1%",
+      "token0": "USDC",
+      "token0_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "token1": "MORPHO",
+      "token1_address": "0xBAa5CC21fd487B8Fcc2F632f3F4E8D37262a0842",
+      "pool_address": "0x2043B296fFC6b2d3bf4A3F3167d2Afb3B0FBdbEE",
+      "type": "uni_lp",
+      "expiry_days": [3, 5],
+      "_note": "token0=USDC (0x83 < 0xba); fee=10000"
+    },
+    "pancake_lp_cbeth_weth_100": {
+      "name": "PancakeSwap v3 cbETH/WETH 0.01%",
+      "token0": "cbETH",
+      "token0_address": "0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22",
+      "token1": "WETH",
+      "token1_address": "0x4200000000000000000000000000000000000006",
+      "pool_address": "0x257FCbAE4Ac6B26A02E4FC5e1a11e4174B5ce395",
+      "type": "pancake_lp",
+      "expiry_days": [3, 5],
+      "_note": "token0=cbETH (0x2a < 0x42); fee=100"
+    },
+    "pancake_lp_weth_aero_500": {
+      "name": "PancakeSwap v3 WETH/AERO 0.05%",
+      "token0": "WETH",
+      "token0_address": "0x4200000000000000000000000000000000000006",
+      "token1": "AERO",
+      "token1_address": "0x940181a94A35A4569E4529A3CDfB74e38FD98631",
+      "pool_address": "0x20CB8f872ae894F7c9e32e621C186e5AFCe82Fd0",
+      "type": "pancake_lp",
+      "expiry_days": [3, 5],
+      "_note": "token0=WETH (0x42 < 0x94); fee=500"
+    },
+    "aero_vote": {
+      "name": "Aerodrome veVote",
+      "token": "AERO",
+      "address": "0xeBf418Fe2512919F1ac447895dE1b03630F26C68",
+      "type": "aero_vote",
+      "usdc_amount": 5,
+      "expiry_days": [
+        7,
+        14
+      ],
+      "_note": "veAERO lock+vote. amount_wei in state.db = 'tokenId|aeroWei'. usdc_amount=5 spent to buy AERO. expiry_days 7-14d (1-2 epochs)"
+    },
+    "aave_usdc": {
+      "name": "AAVE v3",
+      "token": "USDC",
+      "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "atoken_address": "0x4e65fE4DbA92790696d040ac24Aa414708F5c0AB",
+      "type": "aave_supply",
+      "expiry_days": [3, 5]
+    },
+    "aave_weth": {
+      "name": "AAVE v3",
+      "token": "WETH",
+      "token_address": "0x4200000000000000000000000000000000000006",
+      "atoken_address": "0xD4a0e0b9149BCee3C920d2E00b5dE09138fd8bb7",
+      "type": "aave_supply",
+      "expiry_days": [3, 5]
+    },
+    "aave_cbbtc": {
+      "name": "AAVE v3",
+      "token": "cbBTC",
+      "token_address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "atoken_address": "0xBdb9300b7CDE636d9cD4AFF00f6F009fFBBc8EE6",
+      "type": "aave_supply",
+      "expiry_days": [3, 5]
+    },
+    "aave_wsteth": {
+      "name": "AAVE v3",
+      "token": "wstETH",
+      "token_address": "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452",
+      "atoken_address": "0x99CBC45ea5bb7eF3a5BC08FB1B7E56bB2442Ef0D",
+      "type": "aave_supply",
+      "expiry_days": [3, 5]
+    },
+    "aave_eurc": {
+      "name": "AAVE v3",
+      "token": "EURC",
+      "token_address": "0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42",
+      "atoken_address": "0x90DA57E0A6C0d166Bf15764E03b83745Dc90025B",
+      "type": "aave_supply",
+      "expiry_days": [3, 5]
+    },
+    "_borrow_note": "All compound_borrow platforms use new state encoding: 'TOKEN:wei|TOKEN:wei||BASE:borrow_wei'",
+    "cb_usdc_weth": {
+      "name": "Compound USDC Comet - WETH collateral",
+      "type": "compound_borrow",
+      "comet_address": "0xb125E6687d4313864e53df431d5425969c15Eb2F",
+      "borrow_token": "USDC",
+      "borrow_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "borrow_decimals": 6,
+      "collaterals": [
+        {
+          "token": "WETH",
+          "address": "0x4200000000000000000000000000000000000006",
+          "decimals": 18,
+          "amount_wei": 2500000000000000,
+          "liq_cf": 0.9
+        }
+      ],
+      "ltv_min": 0.15,
+      "ltv_max": 0.3,
+      "max_utilization": 0.93,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "display_name": "WETH -> USDC [Compound v3]"
+    },
+    "cb_usdc_wsteth": {
+      "name": "Compound USDC Comet - wstETH collateral",
+      "type": "compound_borrow",
+      "comet_address": "0xb125E6687d4313864e53df431d5425969c15Eb2F",
+      "borrow_token": "USDC",
+      "borrow_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "borrow_decimals": 6,
+      "collaterals": [
+        {
+          "token": "wstETH",
+          "address": "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452",
+          "decimals": 18,
+          "amount_wei": 2000000000000000,
+          "liq_cf": 0.85
+        }
+      ],
+      "ltv_min": 0.15,
+      "ltv_max": 0.3,
+      "max_utilization": 0.93,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "display_name": "wstETH -> USDC [Compound v3]"
+    },
+    "cb_usdc_cbbtc": {
+      "name": "Compound USDC Comet - cbBTC collateral",
+      "type": "compound_borrow",
+      "comet_address": "0xb125E6687d4313864e53df431d5425969c15Eb2F",
+      "borrow_token": "USDC",
+      "borrow_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "borrow_decimals": 6,
+      "collaterals": [
+        {
+          "token": "cbBTC",
+          "address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+          "decimals": 8,
+          "amount_wei": 6800,
+          "liq_cf": 0.85
+        }
+      ],
+      "ltv_min": 0.15,
+      "ltv_max": 0.3,
+      "max_utilization": 0.93,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "display_name": "cbBTC -> USDC [Compound v3]"
+    },
+    "cb_usdc_multi": {
+      "name": "Compound USDC Comet - Multi collateral",
+      "type": "compound_borrow",
+      "comet_address": "0xb125E6687d4313864e53df431d5425969c15Eb2F",
+      "borrow_token": "USDC",
+      "borrow_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "borrow_decimals": 6,
+      "collateral_pool": [
+        {
+          "token": "WETH",
+          "address": "0x4200000000000000000000000000000000000006",
+          "decimals": 18,
+          "amount_wei": 2500000000000000,
+          "liq_cf": 0.9
+        },
+        {
+          "token": "wstETH",
+          "address": "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452",
+          "decimals": 18,
+          "amount_wei": 2000000000000000,
+          "liq_cf": 0.85
+        },
+        {
+          "token": "cbBTC",
+          "address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+          "decimals": 8,
+          "amount_wei": 6800,
+          "liq_cf": 0.85
+        }
+      ],
+      "pick_count": [
+        2,
+        3
+      ],
+      "ltv_min": 0.15,
+      "ltv_max": 0.3,
+      "max_utilization": 0.93,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "display_name": "WETH+wstETH+cbBTC -> USDC [Compound v3]"
+    },
+    "cb_weth_wsteth": {
+      "name": "Compound WETH Comet - wstETH collateral",
+      "type": "compound_borrow",
+      "comet_address": "0x46e6b214b524310239732D51387075E0e70970bf",
+      "borrow_token": "WETH",
+      "borrow_address": "0x4200000000000000000000000000000000000006",
+      "borrow_decimals": 18,
+      "collaterals": [
+        {
+          "token": "wstETH",
+          "address": "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452",
+          "decimals": 18,
+          "amount_wei": 2000000000000000,
+          "liq_cf": 0.93
+        }
+      ],
+      "ltv_min": 0.15,
+      "ltv_max": 0.3,
+      "max_utilization": 0.98,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "_note": "Borrow ETH against staked ETH — correlated pair, price risk cancels out. LiqCF=93%",
+      "display_name": "wstETH -> WETH [Compound v3]"
+    },
+    "cb_weth_cbbtc": {
+      "name": "Compound WETH Comet - cbBTC collateral",
+      "type": "compound_borrow",
+      "comet_address": "0x46e6b214b524310239732D51387075E0e70970bf",
+      "borrow_token": "WETH",
+      "borrow_address": "0x4200000000000000000000000000000000000006",
+      "borrow_decimals": 18,
+      "collaterals": [
+        {
+          "token": "cbBTC",
+          "address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+          "decimals": 8,
+          "amount_wei": 6800,
+          "liq_cf": 0.85
+        }
+      ],
+      "ltv_min": 0.15,
+      "ltv_max": 0.3,
+      "max_utilization": 0.98,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "display_name": "cbBTC -> WETH [Compound v3]"
+    },
+    "cb_aero_weth": {
+      "name": "Compound AERO Comet - WETH collateral",
+      "type": "compound_borrow",
+      "comet_address": "0x784efeB622244d2348d4F2522f8860B96fbEcE89",
+      "borrow_token": "AERO",
+      "borrow_address": "0x940181a94A35A4569E4529A3CDfB74e38FD98631",
+      "borrow_decimals": 18,
+      "collaterals": [
+        {
+          "token": "WETH",
+          "address": "0x4200000000000000000000000000000000000006",
+          "decimals": 18,
+          "amount_wei": 2500000000000000,
+          "liq_cf": 0.65
+        }
+      ],
+      "ltv_min": 0.1,
+      "ltv_max": 0.2,
+      "max_utilization": 0.9,
+      "expiry_days": [
+        3,
+        5
+      ],
+      "_note": "AERO is volatile — lower LTV 10-20%, shorter expiry 3-5d. Need AERO to 3x+ to liquidate at 20% LTV",
+      "display_name": "WETH -> AERO [Compound v3]"
+    },
+    "cb_aero_wsteth": {
+      "name": "Compound AERO Comet - wstETH collateral",
+      "type": "compound_borrow",
+      "comet_address": "0x784efeB622244d2348d4F2522f8860B96fbEcE89",
+      "borrow_token": "AERO",
+      "borrow_address": "0x940181a94A35A4569E4529A3CDfB74e38FD98631",
+      "borrow_decimals": 18,
+      "collaterals": [
+        {
+          "token": "wstETH",
+          "address": "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452",
+          "decimals": 18,
+          "amount_wei": 2000000000000000,
+          "liq_cf": 0.65
+        }
+      ],
+      "ltv_min": 0.1,
+      "ltv_max": 0.2,
+      "max_utilization": 0.9,
+      "expiry_days": [
+        3,
+        5
+      ],
+      "display_name": "wstETH -> AERO [Compound v3]"
+    },
+    "cb_aero_multi": {
+      "name": "Compound AERO Comet - Multi collateral",
+      "type": "compound_borrow",
+      "comet_address": "0x784efeB622244d2348d4F2522f8860B96fbEcE89",
+      "borrow_token": "AERO",
+      "borrow_address": "0x940181a94A35A4569E4529A3CDfB74e38FD98631",
+      "borrow_decimals": 18,
+      "collateral_pool": [
+        {
+          "token": "WETH",
+          "address": "0x4200000000000000000000000000000000000006",
+          "decimals": 18,
+          "amount_wei": 2500000000000000,
+          "liq_cf": 0.65
+        },
+        {
+          "token": "wstETH",
+          "address": "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452",
+          "decimals": 18,
+          "amount_wei": 2000000000000000,
+          "liq_cf": 0.65
+        }
+      ],
+      "pick_count": [
+        2,
+        2
+      ],
+      "ltv_min": 0.1,
+      "ltv_max": 0.2,
+      "max_utilization": 0.9,
+      "expiry_days": [
+        3,
+        5
+      ],
+      "display_name": "WETH+wstETH -> AERO [Compound v3]"
+    },
+    "_mw_borrow_note": "Moonwell (Compound v2 fork) — enterMarkets + borrow/repayBorrow. Comptroller: 0xfBb21d0380beE3312B33c4353c8936a0F13EF26C",
+    "mw_weth_usdc": {
+      "name": "Moonwell WETH -> USDC",
+      "type": "mw_borrow",
+      "comptroller": "0xfBb21d0380beE3312B33c4353c8936a0F13EF26C",
+      "collateral_token": "WETH",
+      "collateral_address": "0x4200000000000000000000000000000000000006",
+      "collateral_mtoken": "0x628ff693426583D9a7FB391E54366292F509D457",
+      "collateral_decimals": 18,
+      "collateral_amount_wei": 2500000000000000,
+      "collateral_cf": 0.84,
+      "borrow_token": "USDC",
+      "borrow_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "borrow_mtoken": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",
+      "borrow_decimals": 6,
+      "ltv_min": 0.15,
+      "ltv_max": 0.2,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "display_name": "WETH -> USDC [Moonwell]"
+    },
+    "mw_cbbtc_usdc": {
+      "name": "Moonwell cbBTC -> USDC",
+      "type": "mw_borrow",
+      "comptroller": "0xfBb21d0380beE3312B33c4353c8936a0F13EF26C",
+      "collateral_token": "cbBTC",
+      "collateral_address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "collateral_mtoken": "0xF877ACaFA28c19b96727966690b2f44d35aD5976",
+      "collateral_decimals": 8,
+      "collateral_amount_wei": 6800,
+      "collateral_cf": 0.85,
+      "borrow_token": "USDC",
+      "borrow_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "borrow_mtoken": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",
+      "borrow_decimals": 6,
+      "ltv_min": 0.15,
+      "ltv_max": 0.2,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "display_name": "cbBTC -> USDC [Moonwell]"
+    },
+    "mw_cbbtc_weth": {
+      "name": "Moonwell cbBTC -> WETH",
+      "type": "mw_borrow",
+      "comptroller": "0xfBb21d0380beE3312B33c4353c8936a0F13EF26C",
+      "collateral_token": "cbBTC",
+      "collateral_address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "collateral_mtoken": "0xF877ACaFA28c19b96727966690b2f44d35aD5976",
+      "collateral_decimals": 8,
+      "collateral_amount_wei": 6800,
+      "collateral_cf": 0.85,
+      "borrow_token": "WETH",
+      "borrow_address": "0x4200000000000000000000000000000000000006",
+      "borrow_mtoken": "0x628ff693426583D9a7FB391E54366292F509D457",
+      "borrow_decimals": 18,
+      "ltv_min": 0.15,
+      "ltv_max": 0.2,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "display_name": "cbBTC -> WETH [Moonwell]"
+    },
+    "mw_wsteth_usdc": {
+      "name": "Moonwell wstETH -> USDC",
+      "type": "mw_borrow",
+      "comptroller": "0xfBb21d0380beE3312B33c4353c8936a0F13EF26C",
+      "collateral_token": "wstETH",
+      "collateral_address": "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452",
+      "collateral_mtoken": "0x627Fe393Bc6EdDA28e99AE648fD6fF362514304b",
+      "collateral_decimals": 18,
+      "collateral_amount_wei": 2000000000000000,
+      "collateral_cf": 0.81,
+      "borrow_token": "USDC",
+      "borrow_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "borrow_mtoken": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",
+      "borrow_decimals": 6,
+      "ltv_min": 0.15,
+      "ltv_max": 0.2,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "display_name": "wstETH -> USDC [Moonwell]"
+    },
+    "mw_wsteth_weth": {
+      "name": "Moonwell wstETH -> WETH",
+      "type": "mw_borrow",
+      "comptroller": "0xfBb21d0380beE3312B33c4353c8936a0F13EF26C",
+      "collateral_token": "wstETH",
+      "collateral_address": "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452",
+      "collateral_mtoken": "0x627Fe393Bc6EdDA28e99AE648fD6fF362514304b",
+      "collateral_decimals": 18,
+      "collateral_amount_wei": 2000000000000000,
+      "collateral_cf": 0.81,
+      "borrow_token": "WETH",
+      "borrow_address": "0x4200000000000000000000000000000000000006",
+      "borrow_mtoken": "0x628ff693426583D9a7FB391E54366292F509D457",
+      "borrow_decimals": 18,
+      "ltv_min": 0.15,
+      "ltv_max": 0.2,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "_note": "LST->ETH borrow — correlated pair, price risk minimal",
+      "display_name": "wstETH -> WETH [Moonwell]"
+    },
+    "mw_eurc_usdc": {
+      "name": "Moonwell EURC -> USDC",
+      "type": "mw_borrow",
+      "comptroller": "0xfBb21d0380beE3312B33c4353c8936a0F13EF26C",
+      "collateral_token": "EURC",
+      "collateral_address": "0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42",
+      "collateral_mtoken": "0xb682c840B5F4FC58B20769E691A6fa1305A501a2",
+      "collateral_decimals": 6,
+      "collateral_amount_wei": 4000000,
+      "collateral_cf": 0.88,
+      "borrow_token": "USDC",
+      "borrow_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "borrow_mtoken": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",
+      "borrow_decimals": 6,
+      "ltv_min": 0.15,
+      "ltv_max": 0.2,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "display_name": "EURC -> USDC [Moonwell]"
+    },
+    "mw_weth_eurc": {
+      "name": "Moonwell WETH -> EURC",
+      "type": "mw_borrow",
+      "comptroller": "0xfBb21d0380beE3312B33c4353c8936a0F13EF26C",
+      "collateral_token": "WETH",
+      "collateral_address": "0x4200000000000000000000000000000000000006",
+      "collateral_mtoken": "0x628ff693426583D9a7FB391E54366292F509D457",
+      "collateral_decimals": 18,
+      "collateral_amount_wei": 2500000000000000,
+      "collateral_cf": 0.84,
+      "borrow_token": "EURC",
+      "borrow_address": "0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42",
+      "borrow_mtoken": "0xb682c840B5F4FC58B20769E691A6fa1305A501a2",
+      "borrow_decimals": 6,
+      "ltv_min": 0.15,
+      "ltv_max": 0.2,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "display_name": "WETH -> EURC [Moonwell]"
+    },
+    "mw_aero_usdc": {
+      "name": "Moonwell AERO -> USDC",
+      "type": "mw_borrow",
+      "comptroller": "0xfBb21d0380beE3312B33c4353c8936a0F13EF26C",
+      "collateral_token": "AERO",
+      "collateral_address": "0x940181a94A35A4569E4529A3CDfB74e38FD98631",
+      "collateral_mtoken": "0x73902f619CEB9B31FD8EFecf435CbDf89E369Ba6",
+      "collateral_decimals": 18,
+      "collateral_amount_wei": 5000000000000000000,
+      "collateral_cf": 0.65,
+      "borrow_token": "USDC",
+      "borrow_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "borrow_mtoken": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",
+      "borrow_decimals": 6,
+      "ltv_min": 0.15,
+      "ltv_max": 0.2,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "display_name": "AERO -> USDC [Moonwell]"
+    },
+    "mw_virtual_usdc": {
+      "name": "Moonwell VIRTUAL -> USDC",
+      "type": "mw_borrow",
+      "comptroller": "0xfBb21d0380beE3312B33c4353c8936a0F13EF26C",
+      "collateral_token": "VIRTUAL",
+      "collateral_address": "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b",
+      "collateral_mtoken": "0xdE8Df9d942D78edE3Ca06e60712582F79CFfFC64",
+      "collateral_decimals": 18,
+      "collateral_amount_wei": 7000000000000000000,
+      "collateral_cf": 0.65,
+      "borrow_token": "USDC",
+      "borrow_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "borrow_mtoken": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",
+      "borrow_decimals": 6,
+      "ltv_min": 0.15,
+      "ltv_max": 0.2,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "display_name": "VIRTUAL -> USDC [Moonwell]"
+    },
+    "mw_morpho_usdc": {
+      "name": "Moonwell MORPHO -> USDC",
+      "type": "mw_borrow",
+      "comptroller": "0xfBb21d0380beE3312B33c4353c8936a0F13EF26C",
+      "collateral_token": "MORPHO",
+      "collateral_address": "0xBAa5CC21fd487B8Fcc2F632f3F4E8D37262a0842",
+      "collateral_mtoken": "0x6308204872BdB7432dF97b04B42443c714904F3E",
+      "collateral_decimals": 18,
+      "collateral_amount_wei": 2500000000000000000,
+      "collateral_cf": 0.65,
+      "borrow_token": "USDC",
+      "borrow_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "borrow_mtoken": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",
+      "borrow_decimals": 6,
+      "ltv_min": 0.15,
+      "ltv_max": 0.2,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "display_name": "MORPHO -> USDC [Moonwell]"
+    },
+    "mw_cbxrp_usdc": {
+      "name": "Moonwell cbXRP -> USDC",
+      "type": "mw_borrow",
+      "comptroller": "0xfBb21d0380beE3312B33c4353c8936a0F13EF26C",
+      "collateral_token": "cbXRP",
+      "collateral_address": "0xcb585250f852C6c6bf90434AB21A00f02833a4af",
+      "collateral_mtoken": "0xb4fb8fed5b3AaA8434f0B19b1b623d977e07e86d",
+      "collateral_decimals": 6,
+      "collateral_amount_wei": 3800000,
+      "collateral_cf": 0.74,
+      "borrow_token": "USDC",
+      "borrow_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "borrow_mtoken": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",
+      "borrow_decimals": 6,
+      "ltv_min": 0.15,
+      "ltv_max": 0.2,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "display_name": "cbXRP -> USDC [Moonwell]"
+    },
+    "mw_weth_aero": {
+      "name": "Moonwell WETH -> AERO",
+      "type": "mw_borrow",
+      "comptroller": "0xfBb21d0380beE3312B33c4353c8936a0F13EF26C",
+      "collateral_token": "WETH",
+      "collateral_address": "0x4200000000000000000000000000000000000006",
+      "collateral_mtoken": "0x628ff693426583D9a7FB391E54366292F509D457",
+      "collateral_decimals": 18,
+      "collateral_amount_wei": 2500000000000000,
+      "collateral_cf": 0.84,
+      "borrow_token": "AERO",
+      "borrow_address": "0x940181a94A35A4569E4529A3CDfB74e38FD98631",
+      "borrow_mtoken": "0x73902f619CEB9B31FD8EFecf435CbDf89E369Ba6",
+      "borrow_decimals": 18,
+      "ltv_min": 0.15,
+      "ltv_max": 0.2,
+      "expiry_days": [
+        3,
+        7
+      ],
+      "_note": "AERO util=29.7% — safe to borrow",
+      "display_name": "WETH -> AERO [Moonwell]"
+    },
+    "mw_weth_morpho": {
+      "name": "Moonwell WETH -> MORPHO",
+      "type": "mw_borrow",
+      "comptroller": "0xfBb21d0380beE3312B33c4353c8936a0F13EF26C",
+      "collateral_token": "WETH",
+      "collateral_address": "0x4200000000000000000000000000000000000006",
+      "collateral_mtoken": "0x628ff693426583D9a7FB391E54366292F509D457",
+      "collateral_decimals": 18,
+      "collateral_amount_wei": 2500000000000000,
+      "collateral_cf": 0.84,
+      "borrow_token": "MORPHO",
+      "borrow_address": "0xBAa5CC21fd487B8Fcc2F632f3F4E8D37262a0842",
+      "borrow_mtoken": "0x6308204872BdB7432dF97b04B42443c714904F3E",
+      "borrow_decimals": 18,
+      "ltv_min": 0.15,
+      "ltv_max": 0.2,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "_note": "MORPHO util=3.6% — very easy to borrow; route via Uni3 fee=10000"
+    },
+    "mw_weth_cbxrp": {
+      "name": "Moonwell WETH -> cbXRP",
+      "type": "mw_borrow",
+      "comptroller": "0xfBb21d0380beE3312B33c4353c8936a0F13EF26C",
+      "collateral_token": "WETH",
+      "collateral_address": "0x4200000000000000000000000000000000000006",
+      "collateral_mtoken": "0x628ff693426583D9a7FB391E54366292F509D457",
+      "collateral_decimals": 18,
+      "collateral_amount_wei": 2500000000000000,
+      "collateral_cf": 0.84,
+      "borrow_token": "cbXRP",
+      "borrow_address": "0xcb585250f852C6c6bf90434AB21A00f02833a4af",
+      "borrow_mtoken": "0xb4fb8fed5b3AaA8434f0B19b1b623d977e07e86d",
+      "borrow_decimals": 6,
+      "ltv_min": 0.15,
+      "ltv_max": 0.2,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "_note": "cbXRP util=32% — safe; route via Cake3 fee=500"
+    },
+    "mw_weth_virtual": {
+      "name": "Moonwell WETH -> VIRTUAL (fallback USDC)",
+      "type": "mw_borrow",
+      "comptroller": "0xfBb21d0380beE3312B33c4353c8936a0F13EF26C",
+      "collateral_token": "WETH",
+      "collateral_address": "0x4200000000000000000000000000000000000006",
+      "collateral_mtoken": "0x628ff693426583D9a7FB391E54366292F509D457",
+      "collateral_decimals": 18,
+      "collateral_amount_wei": 2500000000000000,
+      "collateral_cf": 0.84,
+      "borrow_token": "VIRTUAL",
+      "borrow_address": "0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b",
+      "borrow_mtoken": "0xdE8Df9d942D78edE3Ca06e60712582F79CFfFC64",
+      "borrow_decimals": 18,
+      "borrow_fallback_token": "USDC",
+      "borrow_fallback_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "borrow_fallback_mtoken": "0xEdc817A28E8B93B03976FBd4a3dDBc9f7D176c22",
+      "borrow_fallback_decimals": 6,
+      "max_borrow_util": 0.95,
+      "ltv_min": 0.15,
+      "ltv_max": 0.2,
+      "expiry_days": [
+        3,
+        7
+      ],
+      "_note": "VIRTUAL util=92.1% — if >95% falls back to borrow USDC instead",
+      "display_name": "WETH -> VIRTUAL [Moonwell]"
+    },
+    "_fluid_borrow_note": "Fluid T1 vault borrow — NFT positions, single operate() call. Factory: 0x324c5Dc1fC42c7a4D43d92df1eBA58a54d13Bf2d",
+    "fl_eth_cbbtc": {
+      "name": "Fluid ETH -> cbBTC",
+      "type": "fluid_borrow",
+      "vault_address": "0x1982CC7b1570C2503282d0A0B41F69b3B28fdcc3",
+      "collateral_token": "ETH",
+      "collateral_address": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      "collateral_decimals": 18,
+      "collateral_amount_wei": 7000000000000000,
+      "collateral_cf": 0.86,
+      "borrow_token": "cbBTC",
+      "borrow_address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "borrow_decimals": 8,
+      "ltv_min": 0.3,
+      "ltv_max": 0.4,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "display_name": "ETH -> cbBTC [Fluid]",
+      "_note": "CF=86% LT=90% util=9.2%"
+    },
+    "fl_wsteth_cbbtc": {
+      "name": "Fluid wstETH -> cbBTC",
+      "type": "fluid_borrow",
+      "vault_address": "0xeAEf563015634a9d0EE6CF1357A3b205C35e028D",
+      "collateral_token": "wstETH",
+      "collateral_address": "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452",
+      "collateral_decimals": 18,
+      "collateral_amount_wei": 4000000000000000,
+      "collateral_cf": 0.85,
+      "borrow_token": "cbBTC",
+      "borrow_address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "borrow_decimals": 8,
+      "ltv_min": 0.3,
+      "ltv_max": 0.4,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "display_name": "wstETH -> cbBTC [Fluid]",
+      "_note": "CF=85% LT=88% util=9.2%"
+    },
+    "fl_wsteth_eth": {
+      "name": "Fluid wstETH -> ETH",
+      "type": "fluid_borrow",
+      "vault_address": "0xA0F83Fc5885cEBc0420ce7C7b139Adc80c4F4D91",
+      "collateral_token": "wstETH",
+      "collateral_address": "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452",
+      "collateral_decimals": 18,
+      "collateral_amount_wei": 2000000000000000,
+      "collateral_cf": 0.93,
+      "borrow_token": "ETH",
+      "borrow_address": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      "borrow_decimals": 18,
+      "ltv_min": 0.1,
+      "ltv_max": 0.2,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "display_name": "wstETH -> ETH [Fluid]",
+      "_note": "CF=93% LT=95% correlated LST/ETH pair"
+    },
+    "fl_cbbtc_eth": {
+      "name": "Fluid cbBTC -> ETH",
+      "type": "fluid_borrow",
+      "vault_address": "0x82B27fA821419F5689381b565a8B0786aA2548De",
+      "collateral_token": "cbBTC",
+      "collateral_address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "collateral_decimals": 8,
+      "collateral_amount_wei": 13600,
+      "collateral_cf": 0.86,
+      "borrow_token": "ETH",
+      "borrow_address": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      "borrow_decimals": 18,
+      "ltv_min": 0.1,
+      "ltv_max": 0.2,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "display_name": "cbBTC -> ETH [Fluid]",
+      "_note": "CF=86% LT=90% BTC->ETH loop"
+    },
+    "fl_eth_usdc": {
+      "name": "Fluid ETH -> USDC",
+      "type": "fluid_borrow",
+      "vault_address": "0xeAbBfca72F8a8bf14C4ac59e69ECB2eB69F0811C",
+      "collateral_token": "ETH",
+      "collateral_address": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      "collateral_decimals": 18,
+      "collateral_amount_wei": 2500000000000000,
+      "collateral_cf": 0.85,
+      "borrow_token": "USDC",
+      "borrow_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "borrow_decimals": 6,
+      "ltv_min": 0.1,
+      "ltv_max": 0.2,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "display_name": "ETH -> USDC [Fluid]",
+      "_note": "CF=85% LT=88% util=96.9%"
+    },
+    "fl_wsteth_usdc": {
+      "name": "Fluid wstETH -> USDC",
+      "type": "fluid_borrow",
+      "vault_address": "0xbEC491FeF7B4f666b270F9D5E5C3f443cBf20991",
+      "collateral_token": "wstETH",
+      "collateral_address": "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452",
+      "collateral_decimals": 18,
+      "collateral_amount_wei": 2000000000000000,
+      "collateral_cf": 0.8,
+      "borrow_token": "USDC",
+      "borrow_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "borrow_decimals": 6,
+      "ltv_min": 0.1,
+      "ltv_max": 0.2,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "display_name": "wstETH -> USDC [Fluid]",
+      "_note": "CF=80% LT=85%"
+    },
+    "fl_cbbtc_usdc": {
+      "name": "Fluid cbBTC -> USDC",
+      "type": "fluid_borrow",
+      "vault_address": "0x4045720a33193b4Fe66c94DFbc8D37B0b4D9B469",
+      "collateral_token": "cbBTC",
+      "collateral_address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "collateral_decimals": 8,
+      "collateral_amount_wei": 13600,
+      "collateral_cf": 0.8,
+      "borrow_token": "USDC",
+      "borrow_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "borrow_decimals": 6,
+      "ltv_min": 0.1,
+      "ltv_max": 0.2,
+      "expiry_days": [
+        5,
+        10
+      ],
+      "display_name": "cbBTC -> USDC [Fluid]",
+      "_note": "CF=80% LT=85%"
+    },
+    "aav_weth_usdc": {
+      "name": "AAVE v3 Borrow",
+      "display_name": "AAVE WETH->USDC",
+      "type": "aave_borrow",
+      "collateral_token": "WETH",
+      "collateral_address": "0x4200000000000000000000000000000000000006",
+      "collateral_decimals": 18,
+      "collateral_amount_wei": 2500000000000000,
+      "collateral_cf": 0.80,
+      "borrow_token": "USDC",
+      "borrow_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "borrow_decimals": 6,
+      "borrow_vdebt": "0x59dca05b6c26dbd64b5381374aAaC5CD05644C28",
+      "ltv_min": 0.15,
+      "ltv_max": 0.30,
+      "expiry_days": [3, 7]
+    },
+    "aav_weth_eurc": {
+      "name": "AAVE v3 Borrow",
+      "display_name": "AAVE WETH->EURC",
+      "type": "aave_borrow",
+      "collateral_token": "WETH",
+      "collateral_address": "0x4200000000000000000000000000000000000006",
+      "collateral_decimals": 18,
+      "collateral_amount_wei": 2500000000000000,
+      "collateral_cf": 0.80,
+      "borrow_token": "EURC",
+      "borrow_address": "0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42",
+      "borrow_decimals": 6,
+      "borrow_vdebt": "0x03D01595769333174036832e18fA2f17C74f8161",
+      "ltv_min": 0.15,
+      "ltv_max": 0.30,
+      "expiry_days": [3, 7]
+    },
+    "aav_cbbtc_weth": {
+      "name": "AAVE v3 Borrow",
+      "display_name": "AAVE cbBTC->WETH",
+      "type": "aave_borrow",
+      "collateral_token": "cbBTC",
+      "collateral_address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "collateral_decimals": 8,
+      "collateral_amount_wei": 6800,
+      "collateral_cf": 0.73,
+      "borrow_token": "WETH",
+      "borrow_address": "0x4200000000000000000000000000000000000006",
+      "borrow_decimals": 18,
+      "borrow_vdebt": "0x24e6e0795b3c7c71D965fCc4f371803d1c1DcA1E",
+      "ltv_min": 0.15,
+      "ltv_max": 0.25,
+      "expiry_days": [3, 7]
+    },
+    "aav_cbbtc_usdc": {
+      "name": "AAVE v3 Borrow",
+      "display_name": "AAVE cbBTC->USDC",
+      "type": "aave_borrow",
+      "collateral_token": "cbBTC",
+      "collateral_address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+      "collateral_decimals": 8,
+      "collateral_amount_wei": 6800,
+      "collateral_cf": 0.73,
+      "borrow_token": "USDC",
+      "borrow_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "borrow_decimals": 6,
+      "borrow_vdebt": "0x59dca05b6c26dbd64b5381374aAaC5CD05644C28",
+      "ltv_min": 0.15,
+      "ltv_max": 0.25,
+      "expiry_days": [3, 7]
+    },
+    "aav_wsteth_usdc": {
+      "name": "AAVE v3 Borrow",
+      "display_name": "AAVE wstETH->USDC",
+      "type": "aave_borrow",
+      "collateral_token": "wstETH",
+      "collateral_address": "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452",
+      "collateral_decimals": 18,
+      "collateral_amount_wei": 2000000000000000,
+      "collateral_cf": 0.75,
+      "borrow_token": "USDC",
+      "borrow_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "borrow_decimals": 6,
+      "borrow_vdebt": "0x59dca05b6c26dbd64b5381374aAaC5CD05644C28",
+      "ltv_min": 0.15,
+      "ltv_max": 0.28,
+      "expiry_days": [3, 7]
+    },
+    "aav_wsteth_weth": {
+      "name": "AAVE v3 Borrow",
+      "display_name": "AAVE wstETH->WETH",
+      "type": "aave_borrow",
+      "collateral_token": "wstETH",
+      "collateral_address": "0xc1CBa3fCea344f92D9239c08C0568f6F2F0ee452",
+      "collateral_decimals": 18,
+      "collateral_amount_wei": 2000000000000000,
+      "collateral_cf": 0.75,
+      "borrow_token": "WETH",
+      "borrow_address": "0x4200000000000000000000000000000000000006",
+      "borrow_decimals": 18,
+      "borrow_vdebt": "0x24e6e0795b3c7c71D965fCc4f371803d1c1DcA1E",
+      "ltv_min": 0.15,
+      "ltv_max": 0.28,
+      "expiry_days": [3, 7]
+    },
+    "aav_weeth_usdc": {
+      "name": "AAVE v3 Borrow",
+      "display_name": "AAVE weETH->USDC",
+      "type": "aave_borrow",
+      "collateral_token": "weETH",
+      "collateral_address": "0x04C0599Ae5A44757c0af6F9eC3b93da8976c150A",
+      "collateral_decimals": 18,
+      "collateral_amount_wei": 2400000000000000,
+      "collateral_cf": 0.75,
+      "borrow_token": "USDC",
+      "borrow_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "borrow_decimals": 6,
+      "borrow_vdebt": "0x59dca05b6c26dbd64b5381374aAaC5CD05644C28",
+      "ltv_min": 0.15,
+      "ltv_max": 0.28,
+      "expiry_days": [3, 7]
+    },
+    "aav_weeth_weth": {
+      "name": "AAVE v3 Borrow",
+      "display_name": "AAVE weETH->WETH",
+      "type": "aave_borrow",
+      "collateral_token": "weETH",
+      "collateral_address": "0x04C0599Ae5A44757c0af6F9eC3b93da8976c150A",
+      "collateral_decimals": 18,
+      "collateral_amount_wei": 2400000000000000,
+      "collateral_cf": 0.75,
+      "borrow_token": "WETH",
+      "borrow_address": "0x4200000000000000000000000000000000000006",
+      "borrow_decimals": 18,
+      "borrow_vdebt": "0x24e6e0795b3c7c71D965fCc4f371803d1c1DcA1E",
+      "ltv_min": 0.15,
+      "ltv_max": 0.28,
+      "expiry_days": [3, 7]
+    }
+  },
+  "phase_pancake_lp": [
+    "pancake_lp_weth_usdc_100",
+    "pancake_lp_cbbtc_weth_100",
+    "pancake_lp_cbbtc_usdc_100",
+    "pancake_lp_weth_usdc_500",
+    "pancake_lp_weth_cbbtc_500",
+    "pancake_lp_virtual_usdc_500",
+    "pancake_lp_eurc_usdc_100",
+    "pancake_lp_cbbtc_usdc_500",
+    "pancake_lp_weth_cbbtc_2500",
+    "pancake_lp_cbbtc_usdc_2500",
+    "pancake_lp_cake_weth_10000",
+    "pancake_lp_wsteth_weth_100",
+    "pancake_lp_weth_usdc_2500"
+  ],
+  "phase_aero_lp": [
+    "aero_lp_weth_usdc",
+    "aero_lp_usdc_aero",
+    "aero_lp_weth_aero",
+    "aero_lp_weth_cbbtc",
+    "aero_lp_virtual_weth",
+    "aero_lp_virtual_aero",
+    "aero_lp_wsteth_aero",
+    "aero_lp_usdc_dola",
+    "aero_lp_usdc_usdz"
+  ],
+  "phase_uni_lp": [
+    "uni_lp_weth_usdc_3000",
+    "uni_lp_weth_usdc_500",
+    "uni_lp_usdc_cbbtc_500",
+    "uni_lp_weth_cbbtc_3000",
+    "uni_lp_weth_cbbtc_500",
+    "uni_lp_weth_usdc_100",
+    "uni_lp_weth_usdt_500",
+    "uni_lp_usdc_usdt_100",
+    "uni_lp_usdc_aero",
+    "uni_lp_eurc_usdc_500"
+  ],
+  "phase_borrow": [
+    "cb_usdc_weth",
+    "cb_usdc_wsteth",
+    "cb_usdc_cbbtc",
+    "cb_usdc_multi",
+    "cb_weth_wsteth",
+    "cb_weth_cbbtc",
+    "cb_aero_weth",
+    "cb_aero_wsteth",
+    "cb_aero_multi"
+  ],
+  "phase_mw_borrow": [
+    "mw_weth_usdc",
+    "mw_cbbtc_usdc",
+    "mw_cbbtc_weth",
+    "mw_wsteth_usdc",
+    "mw_wsteth_weth",
+    "mw_eurc_usdc",
+    "mw_weth_eurc",
+    "mw_aero_usdc",
+    "mw_virtual_usdc",
+    "mw_morpho_usdc",
+    "mw_cbxrp_usdc",
+    "mw_weth_aero",
+    "mw_weth_virtual"
+  ],
+  "phase_fluid_borrow": [
+    "fl_cbbtc_eth",
+    "fl_wsteth_eth",
+    "fl_eth_usdc",
+    "fl_wsteth_usdc",
+    "fl_cbbtc_usdc"
+  ],
+  "phase6b": [
+    "megapot"
+  ],
+  "phase6": [
+    "aero_vote"
+  ],
+  "phase1": [
+    "compound_usdc",
+    "fluid_usdc",
+    "moonwell_usdc"
+  ],
+  "phase2": [
+    "fluid_eth",
+    "fluid_wsteth",
+    "moonwell_eth",
+    "moonwell_eurc",
+    "moonwell_cbbtc"
+  ],
+  "phase3": [
+    "spark_susds"
+  ],
+  "phase4": [
+    "morpho_usdc",
+    "morpho_eth",
+    "morpho_eurc",
+    "morpho_cbbtc"
+  ],
+  "phase5": [
+    "beefy_usdc_steakhouse",
+    "beefy_usdc_gauntlet",
+    "beefy_weth_gauntlet",
+    "beefy_weth_usdc_vlp",
+    "beefy_usdc_aero_vlp"
+  ],
+  "phase_aave_supply": [
+    "aave_usdc", "aave_weth", "aave_cbbtc", "aave_wsteth", "aave_eurc"
+  ],
+  "phase_aave_borrow": [
+    "aav_weth_usdc", "aav_weth_eurc",
+    "aav_cbbtc_weth", "aav_cbbtc_usdc",
+    "aav_wsteth_usdc", "aav_wsteth_weth"
+  ]
+}

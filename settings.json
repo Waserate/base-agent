@@ -1,0 +1,48 @@
+{
+  "usd_tiers": [
+    {
+      "label": "low",
+      "min": 5,
+      "max": 8,
+      "weight": 0.85
+    },
+    {
+      "label": "mid",
+      "min": 8,
+      "max": 12,
+      "weight": 0.1
+    },
+    {
+      "label": "high",
+      "min": 12,
+      "max": 15,
+      "weight": 0.05
+    }
+  ],
+  "eth_min": 0.005,
+  "usdc_retain_usd": 10,
+  "weth_retain_eth": 0.005,
+  "expiry_days": {
+    "lend": [
+      3,
+      5
+    ],
+    "lp": [
+      3,
+      5
+    ],
+    "borrow": [
+      3,
+      7
+    ],
+    "vote": [
+      7,
+      14
+    ]
+  },
+  "max_concurrent": {
+    "lp": 6,
+    "lend": 7,
+    "borrow": 5
+  }
+}
