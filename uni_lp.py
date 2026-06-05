@@ -207,6 +207,7 @@ def mint_uni_lp(pool_key: str) -> tuple:
         log.info(f'[DRY RUN] SKIP uni_lp mint {pool_key}')
         return 0, '0x' + 'dd' * 32
 
+    time.sleep(4)
     nfpm = executor.w3.eth.contract(address=NFPM_ADDR, abi=NFPM_ABI)
     tx = nfpm.functions.mint({
         'token0':         t0_addr,

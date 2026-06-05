@@ -203,7 +203,10 @@ def open_borrow(p: dict, collateral_usd: float = 0.0) -> tuple:
     tx = pool.functions.supply(
         coll_addr, coll_wei, executor.WALLET, 0
     ).build_transaction(executor._tx_params())
-    tx['gas'] = executor._gas_limit(tx)
+    try:
+        tx['gas'] = executor._gas_limit(tx)
+    except Exception:
+        tx['gas'] = 500_000
     supply_txh = executor._send(tx)
     log.info(f'aave supply tx={supply_txh}')
     try:
@@ -218,7 +221,10 @@ def open_borrow(p: dict, collateral_usd: float = 0.0) -> tuple:
     tx = pool.functions.setUserUseReserveAsCollateral(
         coll_addr, True
     ).build_transaction(executor._tx_params())
-    tx['gas'] = executor._gas_limit(tx)
+    try:
+        tx['gas'] = executor._gas_limit(tx)
+    except Exception:
+        tx['gas'] = 500_000
     col_txh = executor._send(tx)
     log.info(f'aave setCollateral tx={col_txh}')
 
@@ -232,7 +238,10 @@ def open_borrow(p: dict, collateral_usd: float = 0.0) -> tuple:
     tx = pool.functions.borrow(
         borrow_addr, borrow_wei, 2, 0, executor.WALLET
     ).build_transaction(executor._tx_params())
-    tx['gas'] = executor._gas_limit(tx)
+    try:
+        tx['gas'] = executor._gas_limit(tx)
+    except Exception:
+        tx['gas'] = 500_000
     borrow_txh = executor._send(tx)
     log.info(f'aave borrow tx={borrow_txh}')
     try:
@@ -323,7 +332,10 @@ def close_borrow(encoded_state: str, p: dict) -> str:
     tx = pool.functions.repay(
         borrow_addr, MAX_UINT256, 2, executor.WALLET
     ).build_transaction(executor._tx_params())
-    tx['gas'] = executor._gas_limit(tx)
+    try:
+        tx['gas'] = executor._gas_limit(tx)
+    except Exception:
+        tx['gas'] = 500_000
     repay_txh = executor._send(tx)
     log.info(f'aave repay tx={repay_txh}')
 
@@ -333,7 +345,10 @@ def close_borrow(encoded_state: str, p: dict) -> str:
     tx = pool.functions.withdraw(
         coll_addr, MAX_UINT256, executor.WALLET
     ).build_transaction(executor._tx_params())
-    tx['gas'] = executor._gas_limit(tx)
+    try:
+        tx['gas'] = executor._gas_limit(tx)
+    except Exception:
+        tx['gas'] = 500_000
     withdraw_txh = executor._send(tx)
     log.info(f'aave withdraw tx={withdraw_txh}')
 

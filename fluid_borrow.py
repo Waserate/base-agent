@@ -297,7 +297,7 @@ def open_borrow(p: dict, collateral_usd: float = 0.0) -> tuple:
         )
 
     if not DRY_RUN:
-        time.sleep(2)
+        time.sleep(4)
 
     # 3. operate(nftId=0, newCol=+col_wei, newDebt=+bor_wei, to=wallet)
     vc = _vault(vault_addr)
@@ -323,7 +323,7 @@ def open_borrow(p: dict, collateral_usd: float = 0.0) -> tuple:
     # 4. Extract NFT ID
     nft_id = 0
     if not DRY_RUN:
-        time.sleep(2)
+        time.sleep(4)
         nft_id = _extract_nft_from_receipt(borrow_txh)
         if nft_id == 0:
             log.warning('fluid_borrow: NFT ID=0, position tracking may fail on close')
@@ -406,7 +406,7 @@ def close_borrow(encoded: str, p: dict) -> str:
             )
 
     if not DRY_RUN:
-        time.sleep(2)
+        time.sleep(4)
 
     # 3. operate(nftId, INT256_MIN, INT256_MIN, wallet)
     # INT256_MIN is Fluid's sentinel meaning "withdraw/repay everything".
@@ -437,7 +437,7 @@ def close_borrow(encoded: str, p: dict) -> str:
     _release_to_eth(col_sym, col_addr, col_wei)
 
     if not DRY_RUN:
-        time.sleep(2)
+        time.sleep(4)
 
     # 5. Convert any leftover borrow token → ETH (from REPAY_BUFFER surplus)
     if not _is_eth(bor_addr):

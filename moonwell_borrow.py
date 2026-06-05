@@ -366,7 +366,10 @@ def open_borrow(p: dict, collateral_usd: float = 0.0) -> str:
         tx = comp.functions.enterMarkets(
             [Web3.to_checksum_address(coll_mtoken)]
         ).build_transaction(executor._tx_params())
-        tx['gas'] = executor._gas_limit(tx)
+        try:
+            tx['gas'] = executor._gas_limit(tx)
+        except Exception:
+            tx['gas'] = 400_000
         txh = executor._send(tx)
         log.info(f'enterMarkets tx={txh}')
         try:
