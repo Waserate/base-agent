@@ -469,15 +469,17 @@ def aero_vote_enter(lock_days: int = 7) -> dict:
     vote_weights = [w for _, w in voted_pools]
     log.info(f'[aero_vote] Will vote on {len(pool_addrs)} pools')
 
-    # Pre-step: flush any lingering USDC → ETH (from failed prior runs)
+    # Pre-step: flush USDC excess above retain threshold → ETH (cosmetic retain stays)
     if not DRY_RUN:
         from swap import swap_token_to_eth as _ste
-        _usdc_c = w3.eth.contract(address=Web3.to_checksum_address(USDC_ADDR), abi=ERC20_ABI)
-        _usdc_existing = _usdc_c.functions.balanceOf(WALLET).call()
-        if _usdc_existing > 0:
-            log.info(f'[aero_vote] flushing {_usdc_existing/1e6:.4f} USDC → ETH before enter')
+        import rule_engine as _re
+        _usdc_c   = w3.eth.contract(address=Web3.to_checksum_address(USDC_ADDR), abi=ERC20_ABI)
+        _usdc_bal = _usdc_c.functions.balanceOf(WALLET).call()
+        _flush    = _re.usdc_excess(_usdc_bal)   # respects usdc_retain_usd setting
+        if _flush > 0:
+            log.info(f'[aero_vote] flushing {_flush/1e6:.4f} USDC excess → ETH (retain kept)')
             try:
-                _ste(USDC_ADDR, _usdc_existing)
+                _ste(USDC_ADDR, _flush)
                 time.sleep(4)
             except Exception as _fe:
                 log.warning(f'[aero_vote] USDC flush failed (non-fatal): {_fe}')
