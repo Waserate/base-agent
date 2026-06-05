@@ -288,9 +288,11 @@ def build() -> dict:
     plan = load_plan()
 
     # Schedule: fixed events
+    _maint_flag = os.path.join(os.path.dirname(__file__), 'cache', f'maintenance_done_{today.isoformat()}.flag')
+    _maint_done = os.path.exists(_maint_flag)
     schedule = [
         {'time': '07:00 BKK', 'event': 'Briefing + plan day', 'done': True},
-        {'time': '07:05 BKK', 'event': 'Maintenance (health + closes)', 'done': False},
+        {'time': '07:05 BKK', 'event': 'Maintenance (health + closes)', 'done': _maint_done},
     ]
     # Add each planned action as a schedule item
     for a in plan:
