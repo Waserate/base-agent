@@ -1714,7 +1714,7 @@ def _maintenance_single_wallet(wid: str, failed: list):
         _action_log(platform, 'close', f'expired {expiry} — withdrawing')
         try:
             import withdraw_all as _wa
-            _wa.run(positions_override=[pos])
+            _wa.run(ids=[pos[0]])
         except Exception as e:
             log.error(f'[{wid}] Expire-withdraw failed {platform}: {e}')
 

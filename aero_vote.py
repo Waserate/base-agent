@@ -665,6 +665,16 @@ def aero_vote_exit(token_id: int) -> str:
         return txh
 
     # Step 4: USDC -> ETH (Uniswap V3)
+    # Read actual on-chain balance — Aerodrome fee rounding may make it 1 wei
+    # less than usdc_received, causing UniswapV3 STF revert on exactInputSingle.
+    usdc_c      = w3.eth.contract(address=Web3.to_checksum_address(USDC_ADDR), abi=ERC20_ABI)
+    usdc_actual = usdc_c.functions.balanceOf(WALLET).call()
+    if usdc_actual < usdc_received:
+        log.warning(f'[aero_vote_exit] USDC actual {usdc_actual} < expected {usdc_received} — using actual')
+        usdc_received = usdc_actual
+    if usdc_received == 0:
+        log.warning('[aero_vote_exit] USDC balance 0 after AERO swap — skip ETH conversion')
+        return txh
     log.info(f'[aero_vote_exit] Selling {usdc_received/1e6:.4f} USDC -> ETH')
     txh = swap_token_to_eth(USDC_ADDR, usdc_received)
     log.info(f'[aero_vote_exit] EXIT DONE  tokenId={token_id}  tx={txh}')
