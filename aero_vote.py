@@ -469,25 +469,39 @@ def aero_vote_enter(lock_days: int = 7) -> dict:
     vote_weights = [w for _, w in voted_pools]
     log.info(f'[aero_vote] Will vote on {len(pool_addrs)} pools')
 
-    # Step 1: ETH -> USDC
+    # Pre-step: flush any lingering USDC → ETH (from failed prior runs)
+    if not DRY_RUN:
+        from swap import swap_token_to_eth as _ste
+        _usdc_c = w3.eth.contract(address=Web3.to_checksum_address(USDC_ADDR), abi=ERC20_ABI)
+        _usdc_existing = _usdc_c.functions.balanceOf(WALLET).call()
+        if _usdc_existing > 0:
+            log.info(f'[aero_vote] flushing {_usdc_existing/1e6:.4f} USDC → ETH before enter')
+            try:
+                _ste(USDC_ADDR, _usdc_existing)
+                time.sleep(4)
+            except Exception as _fe:
+                log.warning(f'[aero_vote] USDC flush failed (non-fatal): {_fe}')
+
+    # Step 1: ETH -> AERO directly via Uniswap V3 fee=10000
+    # Aerodrome V1 USDC/AERO pool has thin liquidity — Uniswap is more reliable.
     if DRY_RUN:
-        log.info(f'[DRY RUN] SKIP ETH->USDC  out={usdc_wei}')
+        log.info(f'[DRY RUN] SKIP ETH->AERO  budget=${usdc_units}')
         actual_aero = int(usdc_units * 1e18)
     else:
-        swap_eth_to_token(USDC_ADDR, usdc_wei)
+        from executor import get_token_usd_price as _gtp
+        aero_price_usd = _gtp('AERO')
+        if not aero_price_usd or aero_price_usd <= 0:
+            raise RuntimeError(f'Cannot get AERO price: {aero_price_usd}')
+        aero_to_buy = int((usdc_units / aero_price_usd) * 1e18)
+        log.info(f'[aero_vote] ETH->AERO  budget=${usdc_units}  price=${aero_price_usd:.4f}  qty={aero_to_buy/1e18:.4f}')
+        swap_eth_to_token(AERO_ADDR, aero_to_buy)
         time.sleep(4)
-
-        # Step 2: USDC -> AERO (Aerodrome V1 router)
-        usdc_c   = w3.eth.contract(address=USDC_ADDR, abi=ERC20_ABI)
-        usdc_bal = usdc_c.functions.balanceOf(WALLET).call()
-        if usdc_bal == 0:
-            raise RuntimeError('No USDC after ETH->USDC swap')
-        log.info(f'[aero_vote] USDC balance: {usdc_bal / 1e6:.4f}')
-        actual_aero = _aero_swap(USDC_ADDR, AERO_ADDR, usdc_bal)
+        aero_c_chk  = w3.eth.contract(address=Web3.to_checksum_address(AERO_ADDR), abi=ERC20_ABI)
+        actual_aero = aero_c_chk.functions.balanceOf(WALLET).call()
         if actual_aero == 0:
-            raise RuntimeError('No AERO after USDC->AERO swap')
+            raise RuntimeError('No AERO after ETH->AERO swap')
 
-    _sl.slog('swap', f'USDC -> AERO  {actual_aero/1e18:.4f}')
+    _sl.slog('swap', f'ETH -> AERO  {actual_aero/1e18:.4f}')
     log.info(f'[aero_vote] AERO to lock: {actual_aero / 1e18:.4f}')
 
     # Step 3: Approve VotingEscrow
