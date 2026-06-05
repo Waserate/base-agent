@@ -640,15 +640,22 @@ def aero_vote_exit(token_id: int) -> str:
         log.info(f'[aero_vote_exit] voted=False — skip reset')
 
     # Step 2: Withdraw veNFT -> AERO
-    tx = ve.functions.withdraw(token_id).build_transaction(_tx_params())
+    # If withdraw reverts, the NFT was already unlocked in a prior partial run.
+    # Don't raise — continue so we can sell any AERO/USDC still in wallet.
+    txh = '0x' + '00' * 32
     try:
-        tx['gas'] = _gas_limit(tx)
-    except Exception:
-        tx['gas'] = 300_000
-    txh = _send(tx)
-    log.info(f'[aero_vote_exit] withdraw tx={txh}')
-    _sl.slog('unlock', f'TX {txh[:10]}...', txhash=txh)
-    time.sleep(4)
+        tx = ve.functions.withdraw(token_id).build_transaction(_tx_params())
+        try:
+            tx['gas'] = _gas_limit(tx)
+        except Exception:
+            tx['gas'] = 300_000
+        txh = _send(tx)
+        log.info(f'[aero_vote_exit] withdraw tx={txh}')
+        _sl.slog('unlock', f'TX {txh[:10]}...', txhash=txh)
+        time.sleep(4)
+    except Exception as _wd_err:
+        log.warning(f'[aero_vote_exit] withdraw revert — NFT likely already unlocked: {_wd_err}')
+        _sl.slog('unlock', f'tokenId={token_id} already unlocked — skip withdraw')
 
     # Step 3: AERO -> USDC (Aerodrome V1 router)
     aero_c   = w3.eth.contract(address=AERO_ADDR, abi=ERC20_ABI)
@@ -676,7 +683,12 @@ def aero_vote_exit(token_id: int) -> str:
         log.warning('[aero_vote_exit] USDC balance 0 after AERO swap — skip ETH conversion')
         return txh
     log.info(f'[aero_vote_exit] Selling {usdc_received/1e6:.4f} USDC -> ETH')
-    txh = swap_token_to_eth(USDC_ADDR, usdc_received)
-    log.info(f'[aero_vote_exit] EXIT DONE  tokenId={token_id}  tx={txh}')
-    _sl.slog('ok', f'tokenId={token_id} exited  TX {txh[:10]}...', txhash=txh)
+    try:
+        txh = swap_token_to_eth(USDC_ADDR, usdc_received)
+        log.info(f'[aero_vote_exit] EXIT DONE  tokenId={token_id}  tx={txh}')
+        _sl.slog('ok', f'tokenId={token_id} exited  TX {txh[:10]}...', txhash=txh)
+    except Exception as _swap_err:
+        # USDC stays in wallet — sweep_tokens.py will convert it to ETH next run.
+        log.warning(f'[aero_vote_exit] USDC->ETH failed (USDC stays, sweep will handle): {_swap_err}')
+        _sl.slog('ok', f'tokenId={token_id} unlocked — USDC->ETH deferred to sweep')
     return txh
