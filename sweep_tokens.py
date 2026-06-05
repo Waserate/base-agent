@@ -52,7 +52,9 @@ def _bal_wei(addr: str) -> int:
             return c.functions.balanceOf(WALLET).call()
         except Exception as _e:
             if '429' in str(_e) and _attempt < 2:
-                time.sleep(5)
+                wait = 5 * (3 ** _attempt)  # 5s → 15s
+                log.warning(f'RPC 429 — retry {_attempt+1}/2 in {wait}s')
+                time.sleep(wait)
                 continue
             raise
 
