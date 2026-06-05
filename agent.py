@@ -1654,6 +1654,19 @@ def plan_sync_job():
             except Exception:
                 pass
 
+        # Wake-up catch-up: if past 07:00 BKK (00:00 UTC) and no wallet has today's plan
+        # → auto-trigger briefing (handles sleep/resume + missed cron misfire)
+        global _last_auto_brief_date
+        now_utc = datetime.utcnow()
+        day_start_utc = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+        if now_utc >= day_start_utc and _last_auto_brief_date != today:
+            active_wallets = [w for w in wallets if w.get('active', True)]
+            has_plan = any(w['id'] in wallet_actions for w in active_wallets)
+            if not has_plan:
+                _last_auto_brief_date = today
+                log.info('plan_sync: wake-up catch-up — no plan for today, triggering briefing')
+                threading.Thread(target=briefing_and_plan, daemon=True).start()
+
     except Exception as e:
         log.warning(f'plan_sync_job failed: {e}')
 
@@ -1740,6 +1753,7 @@ def maintenance_job():
 
 
 _scheduler = None
+_last_auto_brief_date: str | None = None   # guard: auto catch-up once per day
 
 if __name__ == '__main__':
     # ── Startup: set WALLET_ID so cache files are per-wallet ─────────────
@@ -1797,7 +1811,8 @@ if __name__ == '__main__':
     _settings.print_config()
 
     _scheduler = BlockingScheduler(timezone='UTC')
-    _scheduler.add_job(briefing_and_plan, 'cron',     hour=0, minute=0)        # 07:00 BKK
+    _scheduler.add_job(briefing_and_plan, 'cron',     hour=0, minute=0,
+                       misfire_grace_time=86400)                              # 07:00 BKK — fire even after sleep/resume
     _scheduler.add_job(maintenance_job,   'cron',     hour=0, minute=5)        # 07:05 BKK
     _scheduler.add_job(plan_sync_job,     'interval', seconds=60)              # every 60s
 
