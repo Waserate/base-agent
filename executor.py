@@ -264,13 +264,7 @@ def erc4626_deposit(vault_addr: str, token_addr: str, amount_wei: int) -> str:
     tx = vault.functions.deposit(amount_wei, WALLET).build_transaction(
         _tx_params()
     )
-    try:
-        tx['gas'] = _gas_limit(tx)
-    except Exception:
-        # Stale RPC may simulate with pre-swap balance → estimate_gas reverts.
-        # Use safe fallback; MetaMorpho deposits typically consume 350k-500k gas.
-        tx['gas'] = 800_000
-        log.warning(f'estimate_gas failed for deposit {vault_addr} — using fallback gas=800000')
+    tx['gas'] = _gas_limit(tx, fallback=800_000)
     txh = _send(tx)
     try:
         import step_logger as _sl
@@ -293,13 +287,7 @@ def erc4626_withdraw_all(vault_addr: str) -> str:
     tx = vault.functions.withdraw(assets, WALLET, WALLET).build_transaction(
         _tx_params()
     )
-    try:
-        tx['gas'] = _gas_limit(tx)
-    except Exception:
-        # Some vaults (e.g. MetaMorpho) exceed public RPC simulation gas cap.
-        # Use a safe high limit — actual consumption is usually 350k-500k.
-        tx['gas'] = 800_000
-        log.warning(f'estimate_gas failed for {vault_addr} — using fallback gas=800000')
+    tx['gas'] = _gas_limit(tx, fallback=800_000)
     txh = _send(tx)
     try:
         import step_logger as _sl
@@ -540,11 +528,7 @@ def beefy_deposit(vault_addr: str, token_addr: str, amount_wei: int) -> str:
     _approve_if_needed(token_addr, vault_addr, amount_wei)
     vault = w3.eth.contract(address=vault_addr, abi=BEEFY_ABI)
     tx = vault.functions.deposit(amount_wei).build_transaction(_tx_params())
-    try:
-        tx['gas'] = _gas_limit(tx)
-    except Exception:
-        tx['gas'] = 2_000_000
-        log.warning(f'estimate_gas failed for beefy_deposit {vault_addr} — fallback gas=2000000')
+    tx['gas'] = _gas_limit(tx, fallback=2_000_000)
     txh = _send(tx)
     try:
         import step_logger as _sl
@@ -566,11 +550,7 @@ def beefy_withdraw_all(vault_addr: str) -> str:
     if shares == 0:
         raise RuntimeError(f'No mooToken shares in {vault_addr}')
     tx = vault.functions.withdrawAll().build_transaction(_tx_params())
-    try:
-        tx['gas'] = _gas_limit(tx)
-    except Exception:
-        tx['gas'] = 600_000
-        log.warning(f'estimate_gas failed for beefy_withdraw_all — fallback gas=600000')
+    tx['gas'] = _gas_limit(tx, fallback=600_000)
     txh = _send(tx)
     try:
         import step_logger as _sl
@@ -609,11 +589,7 @@ def aerodrome_add_liquidity(
         min0, min1,
         WALLET, deadline,
     ).build_transaction(_tx_params())
-    try:
-        tx['gas'] = _gas_limit(tx)
-    except Exception:
-        tx['gas'] = 600_000
-        log.warning('estimate_gas failed for aerodrome_add_liquidity — fallback gas=600000')
+    tx['gas'] = _gas_limit(tx, fallback=600_000)
     txh = _send(tx)
     try:
         import step_logger as _sl
@@ -640,11 +616,7 @@ def aerodrome_swap_stable(token_in: str, token_out: str, amount_in_wei: int, min
     tx = router.functions.swapExactTokensForTokens(
         amount_in_wei, min_out_wei, routes, WALLET, deadline,
     ).build_transaction(_tx_params())
-    try:
-        tx['gas'] = _gas_limit(tx)
-    except Exception:
-        tx['gas'] = 300_000
-        log.warning(f'estimate_gas failed for aerodrome_swap_stable — fallback gas=300000')
+    tx['gas'] = _gas_limit(tx, fallback=300_000)
     txh = _send(tx)
     try:
         import step_logger as _sl
@@ -694,11 +666,7 @@ def aerodrome_gauge_stake(pool_addr: str, gauge_addr: str, lp_amount: int) -> st
     _approve_if_needed(pool_addr, gauge_addr, lp_amount)
     gauge = w3.eth.contract(address=gauge_addr, abi=GAUGE_ABI)
     tx = gauge.functions.deposit(lp_amount).build_transaction(_tx_params())
-    try:
-        tx['gas'] = _gas_limit(tx)
-    except Exception:
-        tx['gas'] = 400_000
-        log.warning(f'estimate_gas failed for gauge_stake {gauge_addr} — fallback gas=400000')
+    tx['gas'] = _gas_limit(tx, fallback=400_000)
     txh = _send(tx)
     try:
         import step_logger as _sl
@@ -714,11 +682,7 @@ def aerodrome_gauge_unstake(gauge_addr: str, lp_amount: int) -> str:
     gauge_addr = Web3.to_checksum_address(gauge_addr)
     gauge = w3.eth.contract(address=gauge_addr, abi=GAUGE_ABI)
     tx = gauge.functions.withdraw(lp_amount).build_transaction(_tx_params())
-    try:
-        tx['gas'] = _gas_limit(tx)
-    except Exception:
-        tx['gas'] = 300_000
-        log.warning(f'estimate_gas failed for gauge_unstake {gauge_addr} — fallback gas=300000')
+    tx['gas'] = _gas_limit(tx, fallback=300_000)
     txh = _send(tx)
     try:
         import step_logger as _sl
@@ -734,11 +698,7 @@ def aerodrome_gauge_claim(gauge_addr: str) -> str:
     gauge_addr = Web3.to_checksum_address(gauge_addr)
     gauge = w3.eth.contract(address=gauge_addr, abi=GAUGE_ABI)
     tx = gauge.functions.getReward(WALLET).build_transaction(_tx_params())
-    try:
-        tx['gas'] = _gas_limit(tx)
-    except Exception:
-        tx['gas'] = 200_000
-        log.warning(f'estimate_gas failed for gauge_claim {gauge_addr} — fallback gas=200000')
+    tx['gas'] = _gas_limit(tx, fallback=200_000)
     return _send(tx)
 
 
