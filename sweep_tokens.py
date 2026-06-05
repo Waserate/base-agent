@@ -10,7 +10,7 @@ Usage:
     DRY_RUN=true python sweep_tokens.py
 """
 
-import os, sys, json, logging
+import os, sys, json, logging, time
 from datetime import datetime
 from web3 import Web3
 from dotenv import load_dotenv
@@ -46,8 +46,15 @@ USDS_ADDR  = CFG['tokens']['USDS']['address']
 SUSDS_ADDR = CFG['tokens']['sUSDS']['address']
 
 def _bal_wei(addr: str) -> int:
-    c = w3.eth.contract(address=Web3.to_checksum_address(addr), abi=executor.ERC20_ABI)
-    return c.functions.balanceOf(WALLET).call()
+    for _attempt in range(3):
+        try:
+            c = w3.eth.contract(address=Web3.to_checksum_address(addr), abi=executor.ERC20_ABI)
+            return c.functions.balanceOf(WALLET).call()
+        except Exception as _e:
+            if '429' in str(_e) and _attempt < 2:
+                time.sleep(5)
+                continue
+            raise
 
 def _eth_wei() -> int:
     return w3.eth.get_balance(WALLET)
@@ -119,6 +126,7 @@ def run():
     results = []
 
     for symbol, addr, decimals, mode in TOKENS:
+        time.sleep(0.5)  # prevent 429 on rapid sequential RPC calls
         bal       = _bal_wei(addr)
         sweep_amt = _effective_sweep_amount(symbol, bal)
         human     = bal / 10**decimals
