@@ -96,8 +96,19 @@ def _read_token_balance_wei(tok_addr: str) -> int:
                 continue
             raise
 
+def _rpc_call(fn, *args, retries: int = 3, delay: int = 5):
+    """Call fn(*args) with retry on 429 rate-limit errors."""
+    for _attempt in range(retries):
+        try:
+            return fn(*args)
+        except Exception as _e:
+            if '429' in str(_e) and _attempt < retries - 1:
+                time.sleep(delay)
+                continue
+            raise
+
 def _eth_wei() -> int:
-    return w3.eth.get_balance(WALLET)
+    return _rpc_call(w3.eth.get_balance, WALLET)
 
 # ── Step 1: Withdraw from platform ─────────────────────────────────────────────
 
@@ -145,7 +156,7 @@ def _platform_withdraw(platform_key: str, amount_wei: int, pos_id: int = None) -
         time.sleep(4)
         lp_addr = executor.Web3.to_checksum_address(p['lp_address'])
         lp_c    = executor.w3.eth.contract(address=lp_addr, abi=executor.ERC20_ABI)
-        lp_bal  = lp_c.functions.balanceOf(executor.WALLET).call()
+        lp_bal  = _rpc_call(lp_c.functions.balanceOf(executor.WALLET).call)
         log.info(f'  LP in wallet after beefy_withdraw: {lp_bal}')
         if lp_bal == 0:
             return txh, 0, 'LP'
@@ -159,7 +170,7 @@ def _platform_withdraw(platform_key: str, amount_wei: int, pos_id: int = None) -
         gauge_addr = executor.Web3.to_checksum_address(p['gauge_address'])
         pool_addr  = executor.Web3.to_checksum_address(p['pool_address'])
         gauge_c    = executor.w3.eth.contract(address=gauge_addr, abi=executor.GAUGE_ABI)
-        staked     = gauge_c.functions.balanceOf(executor.WALLET).call()
+        staked     = _rpc_call(gauge_c.functions.balanceOf(executor.WALLET).call)
         log.info(f'  gauge staked LP: {staked}')
         # Claim rewards first (best-effort)
         try:
@@ -172,7 +183,7 @@ def _platform_withdraw(platform_key: str, amount_wei: int, pos_id: int = None) -
         txh = executor.aerodrome_gauge_unstake(gauge_addr, staked)
         time.sleep(4)
         lp_c   = executor.w3.eth.contract(address=pool_addr, abi=executor.ERC20_ABI)
-        lp_bal = lp_c.functions.balanceOf(executor.WALLET).call()
+        lp_bal = _rpc_call(lp_c.functions.balanceOf(executor.WALLET).call)
         log.info(f'  LP in wallet after unstake: {lp_bal}')
         if lp_bal == 0:
             return txh, 0, 'LP'
@@ -227,9 +238,9 @@ def _platform_withdraw(platform_key: str, amount_wei: int, pos_id: int = None) -
         ve = executor.w3.eth.contract(
             address=executor.Web3.to_checksum_address(VE_ADDR), abi=VE_ABI
         )
-        locked_info = ve.functions.locked(token_id).call()
+        locked_info = _rpc_call(ve.functions.locked(token_id).call)
         lock_end    = locked_info[1]
-        now = executor.w3.eth.get_block('latest')['timestamp']
+        now = _rpc_call(executor.w3.eth.get_block, 'latest')['timestamp']
         if lock_end > now:
             remaining_h = (lock_end - now) // 3600
             raise RuntimeError(f'LOCKED_SKIP: veAERO tokenId={token_id} expires in {remaining_h}h')
