@@ -1662,7 +1662,12 @@ function renderBriefing(data) {
 
   // Schedule rows
   const schedHtml = (data.schedule || []).map(s => {
-    const tick  = s.done ? '<span style="color:var(--green)">&#10003;</span>' : '<span style="color:var(--muted)">○</span>';
+    let tick;
+    const st = s.status || (s.done ? 'ok' : 'pending');
+    if      (st === 'ok')      tick = '<span style="color:var(--green)">&#10003;</span>';
+    else if (st === 'partial') tick = '<span style="color:#f0c040" title="partial failures">&#9888;</span>';
+    else if (st === 'fail')    tick = '<span style="color:var(--red)">&#10007;</span>';
+    else                       tick = '<span style="color:var(--muted)">○</span>';
     return `<div class="sched-row">
       <span class="sched-tick">${tick}</span>
       <span class="sched-time">${s.time}</span>

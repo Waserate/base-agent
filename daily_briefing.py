@@ -288,11 +288,18 @@ def build() -> dict:
     plan = load_plan()
 
     # Schedule: fixed events
-    _maint_flag = os.path.join(os.path.dirname(__file__), 'cache', f'maintenance_done_{today.isoformat()}.flag')
-    _maint_done = os.path.exists(_maint_flag)
+    _maint_flag = os.path.join(os.path.dirname(__file__), 'cache', f'maintenance_done_{today.isoformat()}.json')
+    _maint_status = 'pending'
+    if os.path.exists(_maint_flag):
+        try:
+            import json as _jb
+            _md = _jb.load(open(_maint_flag))
+            _maint_status = _md.get('status', 'ok')  # 'ok' | 'partial'
+        except Exception:
+            _maint_status = 'ok'
     schedule = [
-        {'time': '07:00 BKK', 'event': 'Briefing + plan day', 'done': True},
-        {'time': '07:05 BKK', 'event': 'Maintenance (health + closes)', 'done': _maint_done},
+        {'time': '07:00 BKK', 'event': 'Briefing + plan day',           'done': True,  'status': 'ok'},
+        {'time': '07:05 BKK', 'event': 'Maintenance (health + closes)', 'done': _maint_status != 'pending', 'status': _maint_status},
     ]
     # Add each planned action as a schedule item
     for a in plan:

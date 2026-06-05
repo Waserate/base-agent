@@ -1760,12 +1760,15 @@ def maintenance_job():
     if failed_today:
         log.warning(f'Maintenance failures: {failed_today}')
     log.info('=== maintenance job done ===')
-    # Write flag so dashboard can show maintenance as done (cross-process signal)
+    # Write status file so dashboard can reflect maintenance result (cross-process signal)
     try:
+        import json as _jm
         _flag = os.path.join(os.path.dirname(__file__), 'cache',
-                             f'maintenance_done_{date.today().isoformat()}.flag')
+                             f'maintenance_done_{date.today().isoformat()}.json')
         os.makedirs(os.path.dirname(_flag), exist_ok=True)
-        open(_flag, 'w').close()
+        _status = 'ok' if not failed_today else 'partial'
+        with open(_flag, 'w') as _fj:
+            _jm.dump({'status': _status, 'failures': failed_today}, _fj)
     except Exception:
         pass
 
