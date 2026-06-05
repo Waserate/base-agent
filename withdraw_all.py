@@ -86,8 +86,15 @@ def _tok_decimals(token: str) -> int:
     return CFG['tokens'].get(token, {}).get('decimals', 18)
 
 def _read_token_balance_wei(tok_addr: str) -> int:
-    c = w3.eth.contract(address=Web3.to_checksum_address(tok_addr), abi=executor.ERC20_ABI)
-    return c.functions.balanceOf(WALLET).call()
+    for _attempt in range(3):
+        try:
+            c = w3.eth.contract(address=Web3.to_checksum_address(tok_addr), abi=executor.ERC20_ABI)
+            return c.functions.balanceOf(WALLET).call()
+        except Exception as _e:
+            if '429' in str(_e) and _attempt < 2:
+                time.sleep(5)
+                continue
+            raise
 
 def _eth_wei() -> int:
     return w3.eth.get_balance(WALLET)
@@ -205,7 +212,9 @@ def _platform_withdraw(platform_key: str, amount_wei: int, pos_id: int = None) -
     elif t == 'aave_supply':
         txh = _aave_supply.withdraw_all(p['token_address'])
         time.sleep(4)
-        return txh, amount_wei, p['token']
+        # Read actual balance — aToken accrues interest, actual > DB-stored amount_wei
+        actual_received = _read_token_balance_wei(tok_addr) if token != 'ETH' else _eth_wei()
+        return txh, actual_received, p['token']
     elif t == 'aave_borrow':
         txh = _aave_borrow.close_borrow(str(amount_wei), p)
         time.sleep(4)
