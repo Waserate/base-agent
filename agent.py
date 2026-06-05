@@ -1656,7 +1656,7 @@ def plan_sync_job():
 
         # Wake-up catch-up: if past 07:00 BKK (00:00 UTC) and no wallet has today's plan
         # → auto-trigger briefing (handles sleep/resume + missed cron misfire)
-        global _last_auto_brief_date
+        global _last_auto_brief_date, _last_maintenance_date
         now_utc = datetime.utcnow()
         day_start_utc = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
         if now_utc >= day_start_utc and _last_auto_brief_date != today:
@@ -1666,6 +1666,14 @@ def plan_sync_job():
                 _last_auto_brief_date = today
                 log.info('plan_sync: wake-up catch-up — no plan for today, triggering briefing')
                 threading.Thread(target=briefing_and_plan, daemon=True).start()
+
+        # Wake-up catch-up: if past 07:05 BKK (00:05 UTC) and maintenance hasn't run today
+        # → auto-trigger maintenance (withdraw expired + health check + periodic actions)
+        maint_start_utc = now_utc.replace(hour=0, minute=5, second=0, microsecond=0)
+        if now_utc >= maint_start_utc and _last_maintenance_date != today:
+            _last_maintenance_date = today
+            log.info('plan_sync: wake-up catch-up — maintenance not run today, triggering')
+            threading.Thread(target=maintenance_job, daemon=True).start()
 
     except Exception as e:
         log.warning(f'plan_sync_job failed: {e}')
@@ -1723,6 +1731,8 @@ def maintenance_job():
     07:05 BKK (00:05 UTC) — iterate all active wallets, run maintenance for each.
     Weekly report runs once (primary wallet context).
     """
+    global _last_maintenance_date
+    _last_maintenance_date = date.today().isoformat()
     log.info('=== maintenance job start ===')
     failed_today: list = []
 
@@ -1753,7 +1763,8 @@ def maintenance_job():
 
 
 _scheduler = None
-_last_auto_brief_date: str | None = None   # guard: auto catch-up once per day
+_last_auto_brief_date:    str | None = None   # guard: auto catch-up once per day
+_last_maintenance_date:   str | None = None   # guard: maintenance catch-up once per day
 
 if __name__ == '__main__':
     # ── Startup: set WALLET_ID so cache files are per-wallet ─────────────
@@ -1813,7 +1824,8 @@ if __name__ == '__main__':
     _scheduler = BlockingScheduler(timezone='UTC')
     _scheduler.add_job(briefing_and_plan, 'cron',     hour=0, minute=0,
                        misfire_grace_time=86400)                              # 07:00 BKK — fire even after sleep/resume
-    _scheduler.add_job(maintenance_job,   'cron',     hour=0, minute=5)        # 07:05 BKK
+    _scheduler.add_job(maintenance_job,   'cron',     hour=0, minute=5,
+                       misfire_grace_time=86400)                              # 07:05 BKK — fire even after sleep/resume
     _scheduler.add_job(plan_sync_job,     'interval', seconds=60)              # every 60s
 
     # On startup: reload or generate today's plan + schedule actions
