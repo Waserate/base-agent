@@ -92,8 +92,19 @@ CTOKEN_ABI = [
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
+def _rpc_call(fn, *args, retries: int = 3, delay: int = 5):
+    """Call fn(*args) with retry on 429 rate-limit errors."""
+    for _attempt in range(retries):
+        try:
+            return fn(*args)
+        except Exception as _e:
+            if '429' in str(_e) and _attempt < retries - 1:
+                time.sleep(delay)
+                continue
+            raise
+
 def _guard():
-    bal = w3.eth.get_balance(WALLET)
+    bal = _rpc_call(w3.eth.get_balance, WALLET)
     if bal < Web3.to_wei(MIN_ETH, 'ether'):
         raise RuntimeError(f'ETH {Web3.from_wei(bal,"ether"):.5f} < MIN_ETH_BALANCE {MIN_ETH}')
 
@@ -261,10 +272,10 @@ def erc4626_withdraw_all(vault_addr: str) -> str:
         log.info(f'[DRY RUN] SKIP erc4626_withdraw_all  vault={vault_addr}')
         return '0x' + 'dd' * 32
     vault  = w3.eth.contract(address=vault_addr, abi=ERC4626_ABI)
-    shares = vault.functions.balanceOf(WALLET).call()
+    shares = _rpc_call(vault.functions.balanceOf(WALLET).call)
     if shares == 0:
         raise RuntimeError(f'No shares in {vault_addr}')
-    assets = vault.functions.convertToAssets(shares).call()
+    assets = _rpc_call(vault.functions.convertToAssets(shares).call)
     tx = vault.functions.withdraw(assets, WALLET, WALLET).build_transaction(
         _tx_params()
     )
@@ -310,7 +321,7 @@ def ctoken_withdraw_all(ctoken_addr: str) -> str:
         log.info(f'[DRY RUN] SKIP ctoken_withdraw_all  ctoken={ctoken_addr}')
         return '0x' + 'dd' * 32
     ctoken = w3.eth.contract(address=ctoken_addr, abi=CTOKEN_ABI)
-    shares = ctoken.functions.balanceOf(WALLET).call()
+    shares = _rpc_call(ctoken.functions.balanceOf(WALLET).call)
     if shares == 0:
         raise RuntimeError(f'No cTokens in {ctoken_addr}')
     tx = ctoken.functions.redeem(shares).build_transaction(
@@ -537,7 +548,7 @@ def beefy_withdraw_all(vault_addr: str) -> str:
         log.info(f'[DRY RUN] SKIP beefy_withdraw_all  vault={vault_addr}')
         return '0x' + 'dd' * 32
     vault  = w3.eth.contract(address=vault_addr, abi=BEEFY_ABI)
-    shares = vault.functions.balanceOf(WALLET).call()
+    shares = _rpc_call(vault.functions.balanceOf(WALLET).call)
     if shares == 0:
         raise RuntimeError(f'No mooToken shares in {vault_addr}')
     tx = vault.functions.withdrawAll().build_transaction(_tx_params())
@@ -736,11 +747,11 @@ def _aerodrome_pool_addr(token0: str, token1: str, stable: bool) -> str:
 # ── Balance queries ────────────────────────────────────────────────────────────
 
 def get_eth_balance() -> float:
-    return float(Web3.from_wei(w3_read.eth.get_balance(WALLET), 'ether'))
+    return float(Web3.from_wei(_rpc_call(w3_read.eth.get_balance, WALLET), 'ether'))
 
 def get_token_balance(token_addr: str, decimals: int = 6) -> float:
     token = w3_read.eth.contract(address=Web3.to_checksum_address(token_addr), abi=ERC20_ABI)
-    raw   = token.functions.balanceOf(WALLET).call()
+    raw   = _rpc_call(token.functions.balanceOf(WALLET).call)
     return raw / 10**decimals
 
 
