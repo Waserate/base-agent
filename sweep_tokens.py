@@ -46,14 +46,14 @@ USDS_ADDR  = CFG['tokens']['USDS']['address']
 SUSDS_ADDR = CFG['tokens']['sUSDS']['address']
 
 def _bal_wei(addr: str) -> int:
-    for _attempt in range(3):
+    for _attempt in range(4):
         try:
             c = w3.eth.contract(address=Web3.to_checksum_address(addr), abi=executor.ERC20_ABI)
             return c.functions.balanceOf(WALLET).call()
         except Exception as _e:
-            if '429' in str(_e) and _attempt < 2:
-                wait = 5 * (3 ** _attempt)  # 5s → 15s
-                log.warning(f'RPC 429 — retry {_attempt+1}/2 in {wait}s')
+            if '429' in str(_e) and _attempt < 3:
+                wait = 5 * (3 ** _attempt)  # 5s → 15s → 45s
+                log.warning(f'RPC 429 — retry {_attempt+1}/3 in {wait}s')
                 time.sleep(wait)
                 continue
             raise

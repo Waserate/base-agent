@@ -96,9 +96,9 @@ def _read_token_balance_wei(tok_addr: str) -> int:
                 continue
             raise
 
-def _rpc_call(fn, *args, retries: int = 3, base_delay: int = 5):
+def _rpc_call(fn, *args, retries: int = 4, base_delay: int = 5):
     """Call fn(*args) with exponential backoff on 429 rate-limit errors.
-    Waits: 5s → 15s → 45s (base_delay * 3^attempt)."""
+    Waits: 5s → 15s → 45s (base_delay * 3^attempt) across 3 retries."""
     for _attempt in range(retries):
         try:
             return fn(*args)
