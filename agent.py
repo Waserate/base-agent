@@ -379,39 +379,8 @@ def _run_periodic_actions(failed: list):
             log.error(f'aero_vote enter failed: {e}')
             failed.append('aero_vote_enter')
 
-    # ── megapot (once per week) ───────────────────────────────────────────────
-    days_mp = _days_since('megapot')
-    if days_mp >= MEGAPOT_INTERVAL_DAYS:
-        log.info(f'megapot: last {days_mp}d ago — buying ticket')
-        _megapot._local_nonce = None  # reset nonce before fresh run
-        try:
-            txh, mode = _megapot.buy_ticket()
-            if not _megapot.DRY_RUN:
-                _megapot._record(txh, mode)
-                state.log_daily_stat('game')
-            log.info(f'megapot done  mode={mode}  tx={txh}')
-        except Exception as e:
-            log.error(f'megapot failed: {e}')
-            failed.append('megapot')
-    else:
-        log.info(f'megapot: last {days_mp}d ago — skip (< {MEGAPOT_INTERVAL_DAYS}d)')
-
-    # ── deploy_contract (once per 2 weeks) ───────────────────────────────────
-    days_dc = _days_since('deploy_contract')
-    if days_dc >= DEPLOY_CONTRACT_INTERVAL_DAYS:
-        log.info(f'deploy_contract: last {days_dc}d ago — deploying')
-        _deploy._local_nonce = None  # reset nonce before fresh run
-        try:
-            txh, addr, name, symbol = _deploy.deploy_one()
-            if not _deploy.DRY_RUN:
-                _deploy._record(txh, addr, symbol)
-                state.log_daily_stat('deploy')
-            log.info(f'deploy_contract done  name={name}  addr={addr}  tx={txh}')
-        except Exception as e:
-            log.error(f'deploy_contract failed: {e}')
-            failed.append('deploy_contract')
-    else:
-        log.info(f'deploy_contract: last {days_dc}d ago — skip (< {DEPLOY_CONTRACT_INTERVAL_DAYS}d)')
+    # megapot + deploy_contract moved to plan system (dispatcher._add_periodic_actions)
+    # They now appear as scheduled plan actions at random times, not in maintenance.
 
 
 def _prepare_token_safe(p: dict, tok_addr: str, amt: int, failed: list) -> bool:
@@ -1325,6 +1294,37 @@ def _open_platform_with_recovery_inner(platform_key: str, wid: str):
                 break
     except Exception as e:
         log.warning(f'Could not set overrides: {e}')
+
+    # Special one-shot periodic actions — bypass THE RULE gate and CFG platforms lookup
+    if platform_key == 'megapot':
+        _mark_plan_done(platform_key)
+        try:
+            _megapot._local_nonce = None
+            txh, mode = _megapot.buy_ticket()
+            if not executor.DRY_RUN:
+                _megapot._record(txh, mode)
+                state.log_daily_stat('game')
+            log.info(f'megapot done mode={mode} tx={txh}')
+            _action_log(platform_key, 'ok', f'mode={mode}')
+        except Exception as _e:
+            log.error(f'megapot failed: {_e}')
+            _action_log(platform_key, 'fail', str(_e))
+        return
+
+    if platform_key == 'deploy_contract':
+        _mark_plan_done(platform_key)
+        try:
+            _deploy._local_nonce = None
+            _tx, _addr, _name, _sym = _deploy.deploy_one()
+            if not _deploy.DRY_RUN:
+                _deploy._record(_tx, _addr, _sym)
+                state.log_daily_stat('deploy')
+            log.info(f'deploy_contract done name={_name} addr={_addr}')
+            _action_log(platform_key, 'ok', f'addr={_addr[:10]}...')
+        except Exception as _e:
+            log.error(f'deploy_contract failed: {_e}')
+            _action_log(platform_key, 'fail', str(_e))
+        return
 
     _action_log(platform_key, 'start',
                 f'${_usd_override:.2f}' if _usd_override > 0 else 'default amount',

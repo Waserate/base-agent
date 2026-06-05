@@ -96,6 +96,7 @@ def plan_all_wallets() -> dict:
                     globally_assigned.add(pk)
 
             actions = _build_actions(picks, today, _auto_name, rule_engine, _settings)
+            actions = _add_periodic_actions(actions, today)
             results[wid] = actions
             _save_wallet_plan(wid, actions)
             log.info(f'dispatcher: {wid} — {len(actions)} actions: '
@@ -175,6 +176,92 @@ def _build_actions(picks: list, today: date,
             'date':         today.isoformat(),
             'done':         False,
         })
+    return actions
+
+
+def _days_since_platform(platform: str) -> int:
+    """Days since last state.db entry for platform. 999 if never run."""
+    import state as _s
+    last = _s.get_last_entry_date(platform)
+    if not last:
+        return 999
+    return (date.today() - date.fromisoformat(last)).days
+
+
+def _add_periodic_actions(actions: list, today: date) -> list:
+    """
+    Append megapot / deploy_contract to today's plan if their interval has passed.
+    Each wallet's state.db is already active (dispatcher runs per-wallet context).
+    """
+    used_minutes = set()
+    for a in actions:
+        try:
+            h, m = map(int, a['time_bkk'].split(':'))
+            used_minutes.add(h * 60 + m)
+        except Exception:
+            pass
+
+    def _pick_time():
+        candidates = [m for m in range(ACTION_MIN_BKK, ACTION_MAX_BKK + 1)
+                      if m not in used_minutes]
+        if not candidates:
+            return None
+        mins = random.choice(candidates)
+        used_minutes.add(mins)
+        return mins
+
+    next_idx = max((a['idx'] for a in actions), default=0)
+
+    # megapot — once per 7 days
+    if _days_since_platform('megapot') >= 7:
+        mins = _pick_time()
+        if mins is not None:
+            next_idx += 1
+            h, m   = divmod(mins, 60)
+            bkk_dt = datetime.combine(today, dtime(h, m))
+            utc_dt = bkk_dt - timedelta(hours=7)
+            actions.append({
+                'idx':          next_idx,
+                'platform':     'megapot',
+                'display_name': 'Megapot Lottery',
+                'protocol':     'megapot',
+                'type':         'megapot',
+                'disp_type':    'GAME',
+                'token':        'USDC',
+                'usd_est':      1.0,
+                'expiry_days':  0,
+                'time_bkk':     f'{h:02d}:{m:02d}',
+                'run_at_utc':   utc_dt.isoformat(),
+                'date':         today.isoformat(),
+                'done':         False,
+            })
+            log.info(f'dispatcher: added megapot to plan @ {h:02d}:{m:02d} BKK')
+
+    # deploy_contract — once per 14 days
+    if _days_since_platform('deploy_contract') >= 14:
+        mins = _pick_time()
+        if mins is not None:
+            next_idx += 1
+            h, m   = divmod(mins, 60)
+            bkk_dt = datetime.combine(today, dtime(h, m))
+            utc_dt = bkk_dt - timedelta(hours=7)
+            actions.append({
+                'idx':          next_idx,
+                'platform':     'deploy_contract',
+                'display_name': 'Deploy ERC20',
+                'protocol':     'deploy',
+                'type':         'deploy_contract',
+                'disp_type':    'DEPLOY',
+                'token':        'ETH',
+                'usd_est':      0.016,
+                'expiry_days':  0,
+                'time_bkk':     f'{h:02d}:{m:02d}',
+                'run_at_utc':   utc_dt.isoformat(),
+                'date':         today.isoformat(),
+                'done':         False,
+            })
+            log.info(f'dispatcher: added deploy_contract to plan @ {h:02d}:{m:02d} BKK')
+
     return actions
 
 
