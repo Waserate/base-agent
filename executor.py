@@ -137,10 +137,21 @@ def _tx_params(**extra) -> dict:
         p['gas'] = _DRY_GAS
     return p
 
-def _gas_limit(tx: dict) -> int:
+def _gas_limit(tx: dict, fallback: int = 600_000) -> int:
+    """Estimate gas with 1.5x buffer. Retries 3× with 5s sleep on failure (stale RPC).
+    Falls back to `fallback` gas if all retries fail."""
     if DRY_RUN:
         return _DRY_GAS
-    return int(w3.eth.estimate_gas(tx) * 1.5)
+    for _attempt in range(3):
+        try:
+            return int(w3.eth.estimate_gas(tx) * 1.5)
+        except Exception as _e:
+            if _attempt < 2:
+                log.warning(f'estimate_gas failed (attempt {_attempt+1}/3) — retry in 5s: {_e}')
+                time.sleep(5)
+            else:
+                log.warning(f'estimate_gas failed after 3 attempts — using fallback gas={fallback}')
+                return fallback
 
 def _send(tx: dict) -> str:
     if DRY_RUN:

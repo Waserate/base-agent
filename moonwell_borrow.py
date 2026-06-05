@@ -366,10 +366,7 @@ def open_borrow(p: dict, collateral_usd: float = 0.0) -> str:
         tx = comp.functions.enterMarkets(
             [Web3.to_checksum_address(coll_mtoken)]
         ).build_transaction(executor._tx_params())
-        try:
-            tx['gas'] = executor._gas_limit(tx)
-        except Exception:
-            tx['gas'] = 400_000
+        tx['gas'] = executor._gas_limit(tx)
         txh = executor._send(tx)
         log.info(f'enterMarkets tx={txh}')
         try:
@@ -395,11 +392,7 @@ def open_borrow(p: dict, collateral_usd: float = 0.0) -> str:
     if not DRY_RUN:
         mt = _mtoken(borrow_mtoken)
         tx = mt.functions.borrow(borrow_wei).build_transaction(executor._tx_params())
-        try:
-            tx['gas'] = executor._gas_limit(tx)
-        except Exception:
-            tx['gas'] = 600_000
-            log.warning('estimate_gas failed for borrow — fallback gas=600000')
+        tx['gas'] = executor._gas_limit(tx)
         txh = executor._send(tx)
         log.info(f'borrow tx={txh}')
         try:
@@ -472,11 +465,7 @@ def close_borrow(encoded: str, p: dict, pos_id: int, dry: bool = DRY_RUN):
         executor._approve_if_needed(borrow_addr, borrow_mtoken, repay_wei)
         mt_borrow = _mtoken(borrow_mtoken)
         tx = mt_borrow.functions.repayBorrow(REPAY_ALL).build_transaction(executor._tx_params())
-        try:
-            tx['gas'] = executor._gas_limit(tx)
-        except Exception:
-            tx['gas'] = 400_000
-            log.warning('estimate_gas failed for repayBorrow — fallback gas=400000')
+        tx['gas'] = executor._gas_limit(tx)
         txh = executor._send(tx)
         log.info(f'repayBorrow tx={txh}')
         time.sleep(4)
@@ -489,11 +478,7 @@ def close_borrow(encoded: str, p: dict, pos_id: int, dry: bool = DRY_RUN):
         shares  = mt_coll.functions.balanceOf(executor.WALLET).call()
         if shares > 0:
             tx = mt_coll.functions.redeem(shares).build_transaction(executor._tx_params())
-            try:
-                tx['gas'] = executor._gas_limit(tx)
-            except Exception:
-                tx['gas'] = 400_000
-                log.warning('estimate_gas failed for redeem — fallback gas=400000')
+            tx['gas'] = executor._gas_limit(tx)
             txh = executor._send(tx)
             log.info(f'redeem collateral tx={txh}  shares={shares}')
             time.sleep(4)

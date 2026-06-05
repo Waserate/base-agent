@@ -55,10 +55,7 @@ def supply(asset_addr: str, amount_wei: int) -> str:
     tx = pool.functions.supply(asset_addr, amount_wei, executor.WALLET, 0).build_transaction(
         executor._tx_params()
     )
-    try:
-        tx['gas'] = executor._gas_limit(tx)
-    except Exception:
-        tx['gas'] = 400_000
+    tx['gas'] = executor._gas_limit(tx)
     log.info(f'aave supply  asset={asset_addr}  amount={amount_wei}')
     return executor._send(tx)
 
@@ -71,10 +68,7 @@ def withdraw_all(asset_addr: str) -> str:
     tx = pool.functions.withdraw(asset_addr, MAX_UINT256, executor.WALLET).build_transaction(
         executor._tx_params()
     )
-    try:
-        tx['gas'] = executor._gas_limit(tx)
-    except Exception:
-        tx['gas'] = 400_000
+    tx['gas'] = executor._gas_limit(tx)
     log.info(f'aave withdraw_all  asset={asset_addr}')
     return executor._send(tx)
 
