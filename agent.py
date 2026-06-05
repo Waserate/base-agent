@@ -1712,11 +1712,26 @@ def _maintenance_single_wallet(wid: str, failed: list):
             continue
         log.info(f'[{wid}] Withdrawing expired [{pos_id}] {platform} (expired {expiry})')
         _action_log(platform, 'close', f'expired {expiry} — withdrawing')
-        try:
-            import withdraw_all as _wa
-            _wa.run(ids=[pos[0]])
-        except Exception as e:
-            log.error(f'[{wid}] Expire-withdraw failed {platform}: {e}')
+        import withdraw_all as _wa
+        # Retry loop: keep trying until position is closed (same day) or max attempts reached
+        _MAX_WD_ATTEMPTS = 6
+        _WD_DELAYS = [0, 60, 120, 300, 600, 1200]  # 0,1,2,5,10,20 min between attempts
+        for _wd_attempt in range(_MAX_WD_ATTEMPTS):
+            if _wd_attempt > 0:
+                _wait = _WD_DELAYS[_wd_attempt]
+                log.warning(f'[{wid}] Expire-withdraw retry {_wd_attempt}/{_MAX_WD_ATTEMPTS-1} in {_wait}s (pos#{pos_id} still active)')
+                time.sleep(_wait)
+            try:
+                _wa.run(ids=[pos[0]])
+            except Exception as _we:
+                log.error(f'[{wid}] Expire-withdraw attempt {_wd_attempt+1} exception: {_we}')
+            # Check if position was actually closed in DB
+            state.init_db()
+            if not any(p[0] == pos_id for p in state.get_active()):
+                log.info(f'[{wid}] pos#{pos_id} confirmed closed after attempt {_wd_attempt+1}')
+                break
+        else:
+            log.error(f'[{wid}] Expire-withdraw pos#{pos_id} {platform} still active after {_MAX_WD_ATTEMPTS} attempts')
 
     try:
         _portfolio_tracker.snapshot()
