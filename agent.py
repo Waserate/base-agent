@@ -1714,12 +1714,12 @@ def _maintenance_single_wallet(wid: str, failed: list):
         _action_log(platform, 'close', f'expired {expiry} — withdrawing')
         import withdraw_all as _wa
         # Retry loop: keep trying until position is closed (same day) or max attempts reached
-        _MAX_WD_ATTEMPTS = 6
-        _WD_DELAYS = [0, 60, 120, 300, 600, 1200]  # 0,1,2,5,10,20 min between attempts
+        _MAX_WD_ATTEMPTS = 7
+        _WD_DELAYS = [0, 60, 120, 300, 600, 1200, 1800]  # 0,1,2,5,10,20,30 min
         for _wd_attempt in range(_MAX_WD_ATTEMPTS):
             if _wd_attempt > 0:
                 _wait = _WD_DELAYS[_wd_attempt]
-                log.warning(f'[{wid}] Expire-withdraw retry {_wd_attempt}/{_MAX_WD_ATTEMPTS-1} in {_wait}s (pos#{pos_id} still active)')
+                log.warning(f'[{wid}] Expire-withdraw retry {_wd_attempt}/{_MAX_WD_ATTEMPTS-1} in {_wait//60}min (pos#{pos_id} still active)')
                 time.sleep(_wait)
             try:
                 _wa.run(ids=[pos[0]])
@@ -1731,7 +1731,22 @@ def _maintenance_single_wallet(wid: str, failed: list):
                 log.info(f'[{wid}] pos#{pos_id} confirmed closed after attempt {_wd_attempt+1}')
                 break
         else:
-            log.error(f'[{wid}] Expire-withdraw pos#{pos_id} {platform} still active after {_MAX_WD_ATTEMPTS} attempts')
+            # All attempts failed — flag for manual intervention via dashboard
+            log.error(f'[{wid}] MANUAL WITHDRAW NEEDED: pos#{pos_id} {platform} failed all {_MAX_WD_ATTEMPTS} attempts — press WITHDRAW on dashboard')
+            try:
+                import json as _jw
+                _flag_path = os.path.join(os.path.dirname(__file__), 'cache', f'manual_withdraw_{wid}.json')
+                _existing = []
+                if os.path.exists(_flag_path):
+                    try:
+                        _existing = _jw.load(open(_flag_path))
+                    except Exception:
+                        _existing = []
+                _existing.append({'pos_id': pos_id, 'platform': platform, 'expiry': expiry, 'wallet': wid})
+                with open(_flag_path, 'w') as _ff:
+                    _jw.dump(_existing, _ff)
+            except Exception as _fe:
+                log.warning(f'[{wid}] Failed to write manual_withdraw flag: {_fe}')
 
     try:
         _portfolio_tracker.snapshot()

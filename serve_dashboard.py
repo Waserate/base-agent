@@ -1183,7 +1183,23 @@ def _write_rule_log(original, current, attempt, ok, reason, outcome=None, contex
 def build_briefing():
     try:
         from daily_briefing import build
-        return build()
+        data = build()
+        # Append manual-withdraw alerts from flag files (written when auto-retry exhausted)
+        wid = os.environ.get('WALLET_ID', 'default')
+        _flag = os.path.join(_CACHE_DIR, f'manual_withdraw_{wid}.json')
+        if os.path.exists(_flag):
+            try:
+                import json as _jf
+                items = _jf.load(open(_flag))
+                for item in items:
+                    msg = (f"MANUAL WITHDRAW NEEDED: {item['platform']} "
+                           f"(pos#{item['pos_id']}, expired {item['expiry']}) — กด WITHDRAW ใน Active Positions")
+                    data.setdefault('warnings', [])
+                    if msg not in data['warnings']:
+                        data['warnings'].append(msg)
+            except Exception:
+                pass
+        return data
     except Exception as e:
         return {'error': str(e)}
 
@@ -1396,6 +1412,17 @@ class Handler(SimpleHTTPRequestHandler):
                 [sys.executable, 'withdraw_all.py', '--id', str(pos_id)],
                 cwd=os.path.dirname(os.path.abspath(__file__))
             )
+            # Remove manual-withdraw flag for this pos_id if it exists
+            try:
+                wid = os.environ.get('WALLET_ID', 'default')
+                _mf = os.path.join(_CACHE_DIR, f'manual_withdraw_{wid}.json')
+                if os.path.exists(_mf):
+                    import json as _jmf
+                    items = _jmf.load(open(_mf))
+                    items = [i for i in items if i.get('pos_id') != pos_id]
+                    with open(_mf, 'w') as _f: _jmf.dump(items, _f)
+            except Exception:
+                pass
             self._json({'ok': True, 'message': f'Withdrawing position #{pos_id} — check CMD for progress'})
             return
 
