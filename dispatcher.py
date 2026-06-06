@@ -190,9 +190,9 @@ def _days_since_platform(platform: str) -> int:
 
 def _add_periodic_actions(actions: list, today: date) -> list:
     """
-    Append aero_vote / megapot / deploy_contract to today's plan if their interval has passed.
+    Append megapot / deploy_contract to today's plan if their interval has passed.
     Each wallet's state.db is already active (dispatcher runs per-wallet context).
-    aero_vote ENTER is scheduled here; EXIT is handled in maintenance job (_run_periodic_actions).
+    aero_vote ENTER: manual only (dashboard ADD TO PLAN). EXIT: maintenance job.
     """
     used_minutes = set()
     for a in actions:
@@ -213,32 +213,7 @@ def _add_periodic_actions(actions: list, today: date) -> list:
 
     next_idx = max((a['idx'] for a in actions), default=0)
 
-    # aero_vote ENTER — once per 7 days, only if no active position
-    import state as _s
-    _active_vote = _s.get_active('aero_vote')
-    if not _active_vote and _days_since_platform('aero_vote') >= 7:
-        mins = _pick_time()
-        if mins is not None:
-            next_idx += 1
-            h, m   = divmod(mins, 60)
-            bkk_dt = datetime.combine(today, dtime(h, m))
-            utc_dt = bkk_dt - timedelta(hours=7)
-            actions.append({
-                'idx':          next_idx,
-                'platform':     'aero_vote',
-                'display_name': 'Lock & Vote veAERO',
-                'protocol':     'aero',
-                'type':         'aero_vote',
-                'disp_type':    'VOTE',
-                'token':        'AERO',
-                'usd_est':      5.0,
-                'expiry_days':  7,
-                'time_bkk':     f'{h:02d}:{m:02d}',
-                'run_at_utc':   utc_dt.isoformat(),
-                'date':         today.isoformat(),
-                'done':         False,
-            })
-            log.info(f'dispatcher: added aero_vote to plan @ {h:02d}:{m:02d} BKK')
+    # aero_vote ENTER — manual only via dashboard ADD TO PLAN, not auto-scheduled
 
     # megapot — once per 7 days
     if _days_since_platform('megapot') >= 7:
