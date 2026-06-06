@@ -520,9 +520,9 @@ def aero_vote_enter(lock_days: int = 7) -> dict:
     # Step 3: Approve VotingEscrow
     _approve_if_needed(AERO_ADDR, VE_ADDR, actual_aero)
 
-    # Step 4: createLock — round UP to next WEEK boundary
+    # Step 4: createLock — round UP to nearest WEEK boundary (not +1 extra epoch)
     now = int(time.time()) if DRY_RUN else w3.eth.get_block('latest')['timestamp']
-    lock_end_target = ((now + lock_days * 86400) // WEEK + 1) * WEEK
+    lock_end_target = ((now + lock_days * 86400 + WEEK - 1) // WEEK) * WEEK
     lock_seconds    = lock_end_target - now
     log.info(f'[aero_vote] lock_seconds={lock_seconds}  (~{lock_seconds/86400:.1f}d)')
 

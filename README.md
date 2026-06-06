@@ -112,6 +112,7 @@ Agent currently executes one wallet at a time. Multi-wallet parallel execution i
 - **aero_vote orphan reconcile**: if NFT found on-chain but missing in DB, auto-insert into DB and skip new enter
 - **aero_vote price sanity**: reject if AERO price is outside \$0.05–\$50 range (guards against stale oracle returning wrong price)
 - **aero_vote USD cap**: hard cap at \$10 USD per lock regardless of config value
+- **aero_vote lock formula fix**: corrected epoch rounding — `lock_days=7` now locks exactly 1 epoch (~7 days) instead of 2 epochs (~14 days) due to off-by-one in `+1` formula
 
 ## License
 
