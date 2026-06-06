@@ -453,10 +453,17 @@ def swap_eth_to_token(token_out_addr: str, amount_out_wei: int) -> str:
     return txh
 
 
+_DUST_ETH_WEI = Web3.to_wei(0.0001, 'ether')   # ~$0.35 at $3500/ETH — skip swaps smaller than this
+
+_BAL_ABI = [{"name": "balanceOf", "type": "function", "stateMutability": "view",
+             "inputs": [{"name": "", "type": "address"}], "outputs": [{"name": "", "type": "uint256"}]}]
+
+
 def swap_token_to_eth(token_in_addr: str, amount_in_wei: int) -> str:
     """
     Swap exact amount_in_wei of token_in → ETH.
-    1. Find best quote across pools
+    0. Cap amount_in_wei to actual on-chain balance (prevents STF revert if state.db > withdrawn amount)
+    1. Find best quote across pools; skip if output < dust threshold
     2. Price guard (stable: Chainlink; others: 1% from quote)
     3. Approve token → router
     4. exactInputSingle on best DEX
@@ -465,9 +472,23 @@ def swap_token_to_eth(token_in_addr: str, amount_in_wei: int) -> str:
     """
     token_in_addr = Web3.to_checksum_address(token_in_addr)
 
+    # 0. Cap to actual balance — state.db amount may exceed what was received after protocol fees
+    tok = w3.eth.contract(address=token_in_addr, abi=_BAL_ABI)
+    actual_balance = tok.functions.balanceOf(WALLET).call()
+    if actual_balance == 0:
+        raise ConfigError(f'swap_token_to_eth: no {_sym_for_addr(token_in_addr)} balance')
+    if actual_balance < amount_in_wei:
+        log.warning(f'swap_token_to_eth: balance {actual_balance} < requested {amount_in_wei} — capping to actual')
+        amount_in_wei = actual_balance
+
     # 1. Best quote
     pool_name, fee, router_addr, eth_out, router_type = _best_quote_for_input(token_in_addr, amount_in_wei)
     log.info(f'swap_token_to_eth | best: {pool_name} | ETH out: {Web3.from_wei(eth_out, "ether"):.6f}')
+
+    if eth_out < _DUST_ETH_WEI:
+        raise ConfigError(
+            f'swap_token_to_eth: output {Web3.from_wei(eth_out,"ether"):.6f} ETH below dust threshold — skipping'
+        )
 
     # 2. Price guard
     expected_eth = _get_token_eth_expected(token_in_addr, amount_in_wei)

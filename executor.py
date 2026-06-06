@@ -18,7 +18,8 @@ PSM3_ADDR   = Web3.to_checksum_address('0x1601843c5E9bC251A3272907010AFa41Fa1834
 DRY_RUN     = os.getenv('DRY_RUN', '').lower() in ('1', 'true', 'yes')
 _DRY_GAS    = 300_000
 
-w3      = Web3(Web3.HTTPProvider(RPC_URL))            # TX + complex calls
+_TX_RPC = DISCOVERY_RPC_URL if DISCOVERY_RPC_URL != RPC_URL else RPC_URL
+w3      = Web3(Web3.HTTPProvider(_TX_RPC))            # TX + complex calls (Alchemy if set)
 w3_read = Web3(Web3.HTTPProvider(DISCOVERY_RPC_URL))  # read-only queries (Alchemy)
 
 # ── Minimal ABIs ───────────────────────────────────────────────────────────────
