@@ -18,9 +18,50 @@ PSM3_ADDR   = Web3.to_checksum_address('0x1601843c5E9bC251A3272907010AFa41Fa1834
 DRY_RUN     = os.getenv('DRY_RUN', '').lower() in ('1', 'true', 'yes')
 _DRY_GAS    = 300_000
 
-_TX_RPC = DISCOVERY_RPC_URL if DISCOVERY_RPC_URL != RPC_URL else RPC_URL
-w3      = Web3(Web3.HTTPProvider(_TX_RPC))            # TX + complex calls (Alchemy if set)
-w3_read = Web3(Web3.HTTPProvider(DISCOVERY_RPC_URL))  # read-only queries (Alchemy)
+# RPC endpoint priority list for fallback rotation:
+#   1. Alchemy (DISCOVERY_RPC_URL) — dedicated quota, primary
+#   2. Public Base RPC (BASE_RPC_URL)
+#   3. Extra fallbacks from BASE_RPC_FALLBACKS (comma-separated)
+# On a transient error (429 / timeout / connection), _rotate_rpc() swaps the
+# active provider to the next endpoint. Rotation is sticky and global: once any
+# call switches to a healthy endpoint, every subsequent call uses it too.
+def _build_rpc_list() -> list:
+    raw = [DISCOVERY_RPC_URL, RPC_URL]
+    raw += [u.strip() for u in os.getenv('BASE_RPC_FALLBACKS', '').split(',') if u.strip()]
+    seen, out = set(), []
+    for u in raw:
+        if u and u not in seen:
+            seen.add(u); out.append(u)
+    return out
+
+_RPC_ENDPOINTS = _build_rpc_list()
+_rpc_idx       = 0
+w3      = Web3(Web3.HTTPProvider(_RPC_ENDPOINTS[_rpc_idx]))  # TX + complex calls (Alchemy first)
+w3_read = Web3(Web3.HTTPProvider(DISCOVERY_RPC_URL))         # read-only queries (Alchemy)
+
+
+def _rotate_rpc() -> str:
+    """Switch the active w3 provider to the next endpoint in the list. Returns new URL.
+    No-op (returns current) if only one endpoint configured."""
+    global _rpc_idx
+    if len(_RPC_ENDPOINTS) <= 1:
+        return _RPC_ENDPOINTS[_rpc_idx]
+    _rpc_idx = (_rpc_idx + 1) % len(_RPC_ENDPOINTS)
+    new_url  = _RPC_ENDPOINTS[_rpc_idx]
+    w3.provider = Web3.HTTPProvider(new_url)   # same w3 object — all bound contracts follow
+    log.warning(f'RPC rotated -> [{_rpc_idx}] {new_url.split("/v2/")[0]}...')
+    return new_url
+
+
+def _is_transient_rpc_error(msg: str, exc_type: str = '') -> bool:
+    """True if the error is a transient RPC condition worth rotating + retrying."""
+    m = msg.lower()
+    return (
+        '429' in msg or 'too many requests' in m or 'rate limit' in m
+        or 'timeout' in m or 'timed out' in m or 'timeexhausted' in exc_type.lower()
+        or 'connection' in m or 'max retries' in m or 'temporarily' in m
+        or '502' in msg or '503' in msg or '504' in msg
+    )
 
 # ── Minimal ABIs ───────────────────────────────────────────────────────────────
 
@@ -96,19 +137,56 @@ CTOKEN_ABI = [
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
-def _rpc_call(fn, *args, retries: int = 4, base_delay: int = 5):
-    """Call fn(*args) with exponential backoff on 429 rate-limit errors.
-    Waits: 5s → 15s → 45s (base_delay * 3^attempt) across 3 retries."""
+def _rpc_call(fn, *args, retries: int = 4, base_delay: int = 3):
+    """Call fn(*args) with RPC fallback rotation on transient errors.
+    On 429 / timeout / connection error: rotate to the next endpoint and retry
+    with a short pause (the new endpoint is fresh, so no long backoff needed).
+    fn is resolved at call-time, so after _rotate_rpc() swaps w3.provider the
+    same bound callable transparently hits the new endpoint."""
     for _attempt in range(retries):
         try:
             return fn(*args)
         except Exception as _e:
-            if '429' in str(_e) and _attempt < retries - 1:
-                wait = base_delay * (3 ** _attempt)
-                log.warning(f'RPC 429 — retry {_attempt+1}/{retries-1} in {wait}s')
-                time.sleep(wait)
+            if _is_transient_rpc_error(str(_e), type(_e).__name__) and _attempt < retries - 1:
+                _rotate_rpc()
+                log.warning(f'RPC transient — rotated + retry {_attempt+1}/{retries-1} in {base_delay}s')
+                time.sleep(base_delay)
                 continue
             raise
+
+
+_last_tx_block: int | None = None   # block number of the most recent confirmed TX
+
+
+def wait_for_block(target_block: int, timeout: int = 30) -> bool:
+    """Poll until the active read node reports a block height >= target_block.
+    Fixes read-after-write replica lag: a balanceOf right after a TX can hit a
+    node still 1-2 blocks behind the block the TX was mined in, returning stale
+    state. Returns True once caught up, False on timeout. No-op in DRY_RUN."""
+    if DRY_RUN or not target_block:
+        return True
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            if _rpc_call(w3.eth.get_block_number) >= target_block:
+                return True
+        except Exception:
+            pass
+        time.sleep(1)
+    log.warning(f'wait_for_block: node did not reach block {target_block} within {timeout}s — proceeding')
+    return False
+
+
+def wait_for_sync(timeout: int = 20) -> bool:
+    """Wait until the read node has caught up to the last confirmed TX block.
+    Deterministic replacement for blind time.sleep() after a write before a read.
+    Falls back to a short sleep if no TX block is known yet."""
+    if DRY_RUN:
+        return True
+    if _last_tx_block is None:
+        time.sleep(2)
+        return True
+    return wait_for_block(_last_tx_block, timeout)
 
 def _guard():
     bal = _rpc_call(w3.eth.get_balance, WALLET)
@@ -151,6 +229,8 @@ def _gas_limit(tx: dict, fallback: int = 600_000) -> int:
             return int(w3.eth.estimate_gas(tx) * 1.5)
         except Exception as _e:
             if _attempt < 2:
+                if _is_transient_rpc_error(str(_e), type(_e).__name__):
+                    _rotate_rpc()   # 429/connection — switch endpoint before retry
                 log.warning(f'estimate_gas failed (attempt {_attempt+1}/3) — retry in 5s: {_e}')
                 time.sleep(5)
             else:
@@ -167,7 +247,7 @@ def _send(tx: dict) -> str:
             f'gas={tx.get("gas", _DRY_GAS)}  gas_cost~{eth_cost:.6f} ETH'
         )
         return '0x' + 'dd' * 32
-    global _local_nonce
+    global _local_nonce, _last_tx_block
     for _attempt in range(3):
         try:
             signed  = w3.eth.account.sign_transaction(tx, PRIVATE_KEY)
@@ -175,11 +255,13 @@ def _send(tx: dict) -> str:
             receipt = w3.eth.wait_for_transaction_receipt(txh, timeout=300)
             if receipt.status != 1:
                 raise RuntimeError(f'TX reverted: {txh.hex()}')
+            _last_tx_block = receipt.blockNumber   # for wait_for_sync read-after-write
             return txh.hex()
         except Exception as _e:
-            _msg = str(_e)
+            _msg  = str(_e)
+            _type = type(_e).__name__
+            # 1. nonce too low — TX already submitted/mined; resync and retry
             if 'nonce too low' in _msg and _attempt < 2:
-                # Resync nonce from chain and patch the tx
                 import time as _t
                 _t.sleep(2)
                 _local_nonce = w3.eth.get_transaction_count(WALLET, 'pending')
@@ -189,14 +271,23 @@ def _send(tx: dict) -> str:
                 tx['nonce'] = new_nonce
                 log.warning(f'nonce too low — resynced to {new_nonce}, retry {_attempt+1}/2')
                 continue
-            # TX timeout: dropped from sequencer mempool. Resync nonce to confirmed count
-            # so the caller's retry doesn't queue behind the abandoned TX nonce.
-            _type = type(_e).__name__
+            # 2. TX timeout: dropped from sequencer mempool. Resync nonce to confirmed
+            # count so the caller's retry doesn't queue behind the abandoned nonce, then abort.
             if 'not found after' in _msg or 'TimeExhausted' in _type or 'timeout' in _msg.lower():
                 import time as _t
                 _t.sleep(2)
                 _local_nonce = w3.eth.get_transaction_count(WALLET, 'latest')
                 log.warning(f'TX timeout — nonce resynced to {_local_nonce} (latest confirmed)')
+                raise
+            # 3. transient 429/connection during submit — rotate endpoint and retry the
+            # same signed tx (safe: mempool dedups by tx hash; if it landed, attempt 2
+            # hits "nonce too low" above and resyncs).
+            if _is_transient_rpc_error(_msg, _type) and _attempt < 2:
+                _rotate_rpc()
+                import time as _t
+                _t.sleep(3)
+                log.warning(f'TX submit transient — rotated + retry {_attempt+1}/2')
+                continue
             raise
 
 def _approve_if_needed(token_addr: str, spender: str, amount: int):
@@ -611,8 +702,8 @@ def aerodrome_add_liquidity(
     except Exception:
         pass
 
-    time.sleep(4)
-    lp_after = lp_contract.functions.balanceOf(WALLET).call()
+    wait_for_sync()   # wait until read node reflects the addLiquidity block
+    lp_after = _rpc_call(lp_contract.functions.balanceOf(WALLET).call)
     lp_received = max(lp_after - lp_before, 0)
     log.info(f'aerodrome_add_liquidity: LP received={lp_received}')
     return txh, lp_received

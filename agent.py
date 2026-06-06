@@ -152,14 +152,14 @@ def _supply(platform_key: str) -> str:
         lp_c = executor.w3.eth.contract(address=lp_addr, abi=executor.ERC20_ABI)
         t0_c = executor.w3.eth.contract(address=t0, abi=executor.ERC20_ABI)
         t1_c = executor.w3.eth.contract(address=t1, abi=executor.ERC20_ABI)
-        _time.sleep(4)  # let RPC settle after token acquisition
+        executor.wait_for_sync()  # token-acquisition swaps confirmed; wait for read node to catch up
         amt0 = t0_c.functions.balanceOf(executor.WALLET).call()
         amt1 = t1_c.functions.balanceOf(executor.WALLET).call()
         if amt0 == 0 or amt1 == 0:
             raise RuntimeError(f'beefy_lp: zero token balance t0={amt0} t1={amt1}')
         lp_before = lp_c.functions.balanceOf(executor.WALLET).call()
         executor.aerodrome_add_liquidity(t0, t1, stable, amt0, amt1)
-        _time.sleep(4)
+        executor.wait_for_sync()
         lp_after = lp_c.functions.balanceOf(executor.WALLET).call()
         lp_recv  = max(lp_after - lp_before, 0)
         if lp_recv == 0:
@@ -175,15 +175,15 @@ def _supply(platform_key: str) -> str:
         lp_c = executor.w3.eth.contract(address=pool_addr,  abi=executor.ERC20_ABI)
         t0_c = executor.w3.eth.contract(address=t0, abi=executor.ERC20_ABI)
         t1_c = executor.w3.eth.contract(address=t1, abi=executor.ERC20_ABI)
-        # Use actual wallet balance — sleep lets RPC settle after wrap TX
-        time.sleep(4)
+        # Use actual wallet balance — wait until read node reflects the wrap/swap TXs
+        executor.wait_for_sync()
         amt0 = t0_c.functions.balanceOf(executor.WALLET).call()
         amt1 = t1_c.functions.balanceOf(executor.WALLET).call()
         if amt0 == 0 or amt1 == 0:
             raise RuntimeError(f'aero_lp: zero token balance t0={amt0} t1={amt1}')
         lp_before = lp_c.functions.balanceOf(executor.WALLET).call()
         executor.aerodrome_add_liquidity(t0, t1, stable, amt0, amt1)
-        time.sleep(4)
+        executor.wait_for_sync()
         lp_after = lp_c.functions.balanceOf(executor.WALLET).call()
         lp_recv  = max(lp_after - lp_before, 0)
         if lp_recv == 0:
@@ -1167,9 +1167,9 @@ def _open_platform(platform_key: str, collateral_usd: float = 0.0) -> bool:
             log.info(f'[REPICK] -> {current}')
             _action_log(platform_key, 'repick', f'-> {current}')
             continue
-        # Extra settle time for erc4626 vaults: stale RPC may show pre-swap balance
+        # erc4626 vaults read balance during deposit — wait for read node to reflect the swap
         if CFG['platforms'][current].get('type') == 'erc4626':
-            import time as _t; _t.sleep(4)
+            executor.wait_for_sync()
         try:
             log.info(f'[{exec_attempt}/{MAX_EXEC}] Supply/deposit to {current} ...')
             txh = _supply(current)

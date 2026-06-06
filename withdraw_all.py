@@ -156,7 +156,7 @@ def _platform_withdraw(platform_key: str, amount_wei: int, pos_id: int = None) -
     elif t == 'beefy_lp':
         # Step 1: Beefy withdraw → LP token in wallet
         txh = executor.beefy_withdraw_all(addr)
-        time.sleep(4)
+        executor.wait_for_sync()
         lp_addr = executor.Web3.to_checksum_address(p['lp_address'])
         lp_c    = executor.w3.eth.contract(address=lp_addr, abi=executor.ERC20_ABI)
         lp_bal  = _rpc_call(lp_c.functions.balanceOf(executor.WALLET).call)
@@ -184,7 +184,7 @@ def _platform_withdraw(platform_key: str, amount_wei: int, pos_id: int = None) -
             return 'aero_lp_no_staked', 0, 'LP'
         # Unstake LP from gauge
         txh = executor.aerodrome_gauge_unstake(gauge_addr, staked)
-        time.sleep(4)
+        executor.wait_for_sync()
         lp_c   = executor.w3.eth.contract(address=pool_addr, abi=executor.ERC20_ABI)
         lp_bal = _rpc_call(lp_c.functions.balanceOf(executor.WALLET).call)
         log.info(f'  LP in wallet after unstake: {lp_bal}')
@@ -195,18 +195,18 @@ def _platform_withdraw(platform_key: str, amount_wei: int, pos_id: int = None) -
         t1_addr = executor.Web3.to_checksum_address(p['token1_address'])
         stable  = p.get('stable', False)
         executor.aerodrome_remove_liquidity(t0_addr, t1_addr, stable, lp_bal)
-        time.sleep(4)  # RPC eventual consistency — balances not readable immediately
+        executor.wait_for_sync()  # RPC eventual consistency — balances not readable immediately
         return txh, lp_bal, 'LP'
     elif t == 'uni_lp':
         from uni_lp import close_uni_lp
         # amount_wei = tokenId (int) stored in state.db
         txh = close_uni_lp(amount_wei)
-        time.sleep(4)  # wait for RPC to reflect token balances
+        executor.wait_for_sync()  # wait for RPC to reflect token balances
         return txh, amount_wei, 'LP'
     elif t == 'pancake_lp':
         from pancake_lp import close_pancake_lp
         txh = close_pancake_lp(amount_wei)
-        time.sleep(4)
+        executor.wait_for_sync()
         return txh, amount_wei, 'LP'
     elif t == 'mw_borrow':
         import moonwell_borrow as _mw
@@ -225,13 +225,13 @@ def _platform_withdraw(platform_key: str, amount_wei: int, pos_id: int = None) -
         return txh, 0, 'ETH'
     elif t == 'aave_supply':
         txh = _aave_supply.withdraw_all(p['token_address'])
-        time.sleep(4)
+        executor.wait_for_sync()
         # Read actual balance — aToken accrues interest, actual > DB-stored amount_wei
         actual_received = _read_token_balance_wei(tok_addr) if token != 'ETH' else _eth_wei()
         return txh, actual_received, p['token']
     elif t == 'aave_borrow':
         txh = _aave_borrow.close_borrow(str(amount_wei), p)
-        time.sleep(4)
+        executor.wait_for_sync()
         return txh, 0, 'ETH'  # ETH delta measured externally via _eth_wei()
     elif t == 'aero_vote':
         from aero_vote import aero_vote_exit, VE_ADDR, VE_ABI
@@ -254,7 +254,7 @@ def _platform_withdraw(platform_key: str, amount_wei: int, pos_id: int = None) -
         raise ValueError(f'Unknown platform type: {t}')
 
     # Wait for RPC node to sync state after TX confirm (public RPC eventual consistency)
-    time.sleep(4)
+    executor.wait_for_sync()
 
     # Snapshot after — compute actual received
     if token == 'ETH':
@@ -305,7 +305,7 @@ def _to_eth(platform_key: str, received_wei: int, received_token: str) -> str:
                 # No Uniswap v3 pool: token -> USDC via Aerodrome sAMM, then USDC -> ETH
                 txh1 = executor.aerodrome_swap_stable(t_addr, USDC_ADDR, t_bal)
                 results_txh.append(txh1)
-                time.sleep(4)
+                executor.wait_for_sync()
                 usdc_received = _read_token_balance_wei(USDC_ADDR)
                 if usdc_received > 0:
                     txh2 = swap.attempt_swap(swap.swap_token_to_eth, USDC_ADDR, usdc_received)

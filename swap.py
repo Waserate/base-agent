@@ -208,7 +208,7 @@ def _wrap_eth(amount_wei: int) -> None:
 def _unwrap_weth() -> None:
     import time
     weth = w3.eth.contract(address=WETH_ADDR, abi=WETH_ABI)
-    time.sleep(4)  # wait for RPC node to reflect latest WETH balance
+    executor.wait_for_sync()  # wait until read node reflects latest WETH balance (prior swap TX)
     bal = weth.functions.balanceOf(WALLET).call()
     if bal == 0:
         return

@@ -149,6 +149,8 @@ Agent currently executes one wallet at a time. Multi-wallet parallel execution i
 - **aero_vote address fix**: corrected `aero_vote.address` in contracts.json to the canonical VotingEscrow `0xeBf418Fe2512e7E6...` (was a wrong address only referenced by debug scripts; execution path already used the correct one)
 - **erc4626 dust fix**: `erc4626_withdraw_all` now uses `redeem(shares)` instead of `withdraw(convertToAssets(shares))` — burns the exact share balance, returns all underlying, leaves zero dust shares, and avoids the rounding edge that can revert "withdraw more than max"
 - **compound dust fix**: `compound_withdraw` now reads the current Comet `balanceOf` (principal + accrued interest) and withdraws that, instead of the originally-deposited amount — leaves zero dust in the protocol
+- **RPC fallback rotation**: on a transient error (429 / timeout / connection / 5xx) the agent rotates the active provider to the next endpoint instead of just sleeping on the saturated one. Priority: `DISCOVERY_RPC_URL` (Alchemy) → `BASE_RPC_URL` → `BASE_RPC_FALLBACKS` (new, comma-separated). Rotation is sticky and global — once a healthy endpoint is found, all subsequent calls use it. Wired into `_rpc_call`, `_send` (TX submit), and `_gas_limit`
+- **read-after-write sync fix**: replaced blind `time.sleep(4)` after TXs with `wait_for_sync()` — captures the confirmed TX's block number and polls until the read node reports a height ≥ that block, fixing stale `balanceOf` reads caused by load-balanced RPC replica lag (a read can hit a node 1-2 blocks behind the mined TX). Returns early when synced, waits longer when the node lags. Applied across deposit (LP/erc4626), swap unwrap, and the full withdraw path
 
 ## License
 
