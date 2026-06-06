@@ -328,8 +328,52 @@ def _run_periodic_actions(failed: list):
     """
     # ── aero_vote ─────────────────────────────────────────────────────────────
     import sqlite3 as _sqlite3
+    from web3 import Web3 as _Web3
+
+    AERO_VOTE_MAX_USD = 10.0  # hard cap — never spend more than this per lock
+
+    # ── On-chain guard: scan wallet's veAERO NFTs ──────────────────────────────
+    _VE_ADDR = _Web3.to_checksum_address('0xeBf418Fe2512e7E6bd9b87a8F0f294aCDC67e6B4')
+    _VE_ABI_GUARD = [
+        {'name': 'balanceOf', 'type': 'function', 'stateMutability': 'view',
+         'inputs': [{'name': '_owner', 'type': 'address'}], 'outputs': [{'name': '', 'type': 'uint256'}]},
+        {'name': 'ownerOf', 'type': 'function', 'stateMutability': 'view',
+         'inputs': [{'name': '_tokenId', 'type': 'uint256'}], 'outputs': [{'name': '', 'type': 'address'}]},
+        {'name': 'locked', 'type': 'function', 'stateMutability': 'view',
+         'inputs': [{'name': '_tokenId', 'type': 'uint256'}],
+         'outputs': [{'name': '', 'type': 'tuple', 'components': [
+             {'name': 'amount', 'type': 'int128'}, {'name': 'end', 'type': 'uint256'}, {'name': 'isPermanent', 'type': 'bool'}
+         ]}]},
+    ]
+    _ve_guard = executor.w3.eth.contract(address=_VE_ADDR, abi=_VE_ABI_GUARD)
+
+    def _scan_wallet_ve_tokens(anchor_id: int, window: int = 500) -> list[dict]:
+        """Scan ownerOf for tokenIds in [anchor-window, anchor+window]. Returns list of {token_id, aero, unlock}."""
+        found = []
+        wallet_lower = executor.WALLET.lower()
+        for tid in range(max(1, anchor_id - window), anchor_id + window):
+            try:
+                owner = _ve_guard.functions.ownerOf(tid).call()
+                if owner.lower() == wallet_lower:
+                    locked = _ve_guard.functions.locked(tid).call()
+                    aero = locked[0] / 1e18
+                    unlock = date.fromtimestamp(locked[1]).isoformat() if locked[1] else None
+                    if aero > 0:
+                        found.append({'token_id': tid, 'aero': aero, 'unlock': unlock})
+            except Exception:
+                pass
+        return found
+
+    # Get on-chain veAERO count first (fast check)
+    try:
+        onchain_count = _ve_guard.functions.balanceOf(executor.WALLET).call()
+    except Exception as _e:
+        log.warning(f'aero_vote: balanceOf check failed: {_e}')
+        onchain_count = -1
+
     active_votes = state.get_active('aero_vote')
 
+    # ── Reconcile: DB says active ──────────────────────────────────────────────
     if active_votes:
         for pos in active_votes:
             pos_id, platform, token, amount_wei, entry, expiry, tx_hash, *_rest = pos
@@ -355,29 +399,64 @@ def _run_periodic_actions(failed: list):
                 days_left = (date.fromisoformat(expiry) - date.today()).days
                 log.info(f'aero_vote: tokenId={token_id} still locked ({days_left}d left) — skip')
 
+        # Warn if on-chain count > DB count (orphan NFTs exist)
+        if onchain_count > len(active_votes):
+            log.warning(f'aero_vote: on-chain={onchain_count} NFT(s) but DB has {len(active_votes)} active — orphan detected. Run onchain_recovery to reconcile.')
+
     else:
-        # No active position — start a new 7-day lock cycle
-        log.info('aero_vote: no active position — entering new 7d lock cycle')
-        executor._local_nonce = None
-        try:
-            result = _aero_vote.aero_vote_enter(lock_days=7)
-            if not executor.DRY_RUN:
-                token_id     = result['token_id']
-                aero_wei     = result['aero_wei']
-                lock_end_str = date.fromtimestamp(result['lock_end']).isoformat()
-                amount_str   = f"{token_id}|{aero_wei}"
-                with _sqlite3.connect(state.DB_PATH) as _c:
-                    _c.execute(
-                        'INSERT INTO positions (platform,token,amount_wei,entry_date,expiry_date,tx_hash,status) VALUES (?,?,?,?,?,?,?)',
-                        ('aero_vote', 'AERO', amount_str, date.today().isoformat(), lock_end_str, result['tx_lock'], 'active'),
-                    )
-                state.log_daily_stat('vote')
-                log.info(f'aero_vote enter done  tokenId={token_id}  lock_end={lock_end_str}')
+        # ── DB empty — scan on-chain before entering ───────────────────────────
+        if onchain_count > 0:
+            log.warning(f'aero_vote: DB empty but on-chain wallet has {onchain_count} veAERO NFT(s) — scanning for tokenIds ...')
+            # Use known anchor from DB history or start from known range
+            known_ids = [r[0] for r in _sqlite3.connect(state.DB_PATH).execute(
+                "SELECT CAST(SUBSTR(amount_wei,1,INSTR(amount_wei,'|')-1) AS INTEGER) FROM positions WHERE platform='aero_vote'"
+            ).fetchall() if r[0]]
+            anchor = max(known_ids) if known_ids else 120320
+            found_onchain = _scan_wallet_ve_tokens(anchor, window=500)
+            if found_onchain:
+                log.warning(f'aero_vote: found {len(found_onchain)} active NFT(s) on-chain not in DB: {found_onchain}')
+                # Reconcile: insert orphan(s) into DB to prevent duplicate enter
+                for nft in found_onchain:
+                    tid, aero, unlock = nft['token_id'], nft['aero'], nft['unlock']
+                    with _sqlite3.connect(state.DB_PATH) as _c:
+                        existing = _c.execute("SELECT id FROM positions WHERE platform='aero_vote' AND status='active' AND amount_wei LIKE ?", (f'{tid}|%',)).fetchone()
+                        if not existing:
+                            _c.execute(
+                                'INSERT INTO positions (platform,token,amount_wei,entry_date,expiry_date,tx_hash,status) VALUES (?,?,?,?,?,?,?)',
+                                ('aero_vote', 'AERO', f'{tid}|{int(aero*1e18)}', date.today().isoformat(), unlock or '', 'recovered', 'active'),
+                            )
+                            log.warning(f'aero_vote: reconciled orphan tokenId={tid} aero={aero:.4f} unlock={unlock} into DB')
+                log.warning('aero_vote: orphan reconciled — skipping new enter this cycle')
             else:
-                log.info(f'[DRY RUN] aero_vote_enter done (no DB write)')
-        except Exception as e:
-            log.error(f'aero_vote enter failed: {e}')
-            failed.append('aero_vote_enter')
+                log.warning(f'aero_vote: balanceOf={onchain_count} but scan found nothing in range — skipping enter to be safe')
+        else:
+            # On-chain confirmed empty — safe to enter
+            log.info('aero_vote: no active position (DB + on-chain confirmed) — entering new 7d lock cycle')
+            # Enforce $10 USD cap
+            cfg_usdc = CFG['platforms']['aero_vote'].get('usdc_amount', 5)
+            if cfg_usdc > AERO_VOTE_MAX_USD:
+                log.warning(f'aero_vote: usdc_amount={cfg_usdc} exceeds cap {AERO_VOTE_MAX_USD} — clamping')
+                cfg_usdc = AERO_VOTE_MAX_USD
+            executor._local_nonce = None
+            try:
+                result = _aero_vote.aero_vote_enter(lock_days=7)
+                if not executor.DRY_RUN:
+                    token_id     = result['token_id']
+                    aero_wei     = result['aero_wei']
+                    lock_end_str = date.fromtimestamp(result['lock_end']).isoformat()
+                    amount_str   = f"{token_id}|{aero_wei}"
+                    with _sqlite3.connect(state.DB_PATH) as _c:
+                        _c.execute(
+                            'INSERT INTO positions (platform,token,amount_wei,entry_date,expiry_date,tx_hash,status) VALUES (?,?,?,?,?,?,?)',
+                            ('aero_vote', 'AERO', amount_str, date.today().isoformat(), lock_end_str, result['tx_lock'], 'active'),
+                        )
+                    state.log_daily_stat('vote')
+                    log.info(f'aero_vote enter done  tokenId={token_id}  lock_end={lock_end_str}')
+                else:
+                    log.info(f'[DRY RUN] aero_vote_enter done (no DB write)')
+            except Exception as e:
+                log.error(f'aero_vote enter failed: {e}')
+                failed.append('aero_vote_enter')
 
     # megapot + deploy_contract moved to plan system (dispatcher._add_periodic_actions)
     # They now appear as scheduled plan actions at random times, not in maintenance.

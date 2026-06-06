@@ -494,8 +494,19 @@ def aero_vote_enter(lock_days: int = 7) -> dict:
         aero_price_usd = _gtp('AERO')
         if not aero_price_usd or aero_price_usd <= 0:
             raise RuntimeError(f'Cannot get AERO price: {aero_price_usd}')
-        aero_to_buy = int((usdc_units / aero_price_usd) * 1e18)
-        log.info(f'[aero_vote] ETH->AERO  budget=${usdc_units}  price=${aero_price_usd:.4f}  qty={aero_to_buy/1e18:.4f}')
+        # Sanity check: AERO price must be within plausible range to catch oracle errors
+        AERO_PRICE_MIN = 0.05   # below $0.05 = likely stale/wrong oracle
+        AERO_PRICE_MAX = 50.0   # above $50 = likely wrong oracle
+        if not (AERO_PRICE_MIN <= aero_price_usd <= AERO_PRICE_MAX):
+            raise RuntimeError(f'AERO price ${aero_price_usd:.4f} outside sane range [{AERO_PRICE_MIN}, {AERO_PRICE_MAX}] — aborting to prevent oracle error')
+        # Hard cap: never spend more than 10 USD regardless of config
+        AERO_VOTE_MAX_USD = 10.0
+        capped_usdc = min(usdc_units, AERO_VOTE_MAX_USD)
+        if capped_usdc < usdc_units:
+            log.warning(f'[aero_vote] usdc_amount={usdc_units} exceeds cap {AERO_VOTE_MAX_USD} — clamped to {capped_usdc}')
+        aero_to_buy = int((capped_usdc / aero_price_usd) * 1e18)
+        est_usd = aero_to_buy / 1e18 * aero_price_usd
+        log.info(f'[aero_vote] ETH->AERO  budget=${capped_usdc}  price=${aero_price_usd:.4f}  qty={aero_to_buy/1e18:.4f}  est_usd=${est_usd:.2f}')
         swap_eth_to_token(AERO_ADDR, aero_to_buy)
         time.sleep(4)
         aero_c_chk  = w3.eth.contract(address=Web3.to_checksum_address(AERO_ADDR), abi=ERC20_ABI)
