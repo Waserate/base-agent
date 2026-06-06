@@ -38,26 +38,35 @@ cp wallets.json.example wallets.json
 pip install -r requirements.txt
 ```
 
-### Step 2 — Configure environment
+### Step 2 — Get an Alchemy API key (free)
+
+1. Go to [https://www.alchemy.com](https://www.alchemy.com) → **Sign up** (free account)
+2. Click **Create new app** → choose **Base** as the network
+3. Copy the **HTTPS** endpoint URL (looks like `https://base-mainnet.g.alchemy.com/v2/YOUR_KEY`)
+4. Paste it into `.env` as `DISCOVERY_RPC_URL=<your URL>`
+
+> Without this, LP pool discovery is skipped — agent still works but may miss some Uniswap/PancakeSwap pools.
+
+### Step 3 — Configure environment
 ```bash
 cp .env.example .env
-# Edit .env — fill in WALLET_ADDRESS and WALLET_PRIVATE_KEY at minimum
+# Edit .env — fill in WALLET_ADDRESS, WALLET_PRIVATE_KEY, and DISCOVERY_RPC_URL
 ```
 
-### Step 3 — Configure wallets
+### Step 4 — Configure wallets
 ```bash
 cp wallets.json.example wallets.json
 # Edit wallets.json — add your wallet (id, address, private_key)
 ```
 
-### Step 4 — Launch
+### Step 5 — Launch
 Double-click **`start.bat`** — opens Agent CMD + Dashboard CMD + browser automatically.
 
 ```
 start.bat
 ```
 
-> `.env` and `wallets.json` are **not included in the repo** (contain private keys). Steps 2–3 are required before first run.
+> `.env` and `wallets.json` are **not included in the repo** (contain private keys). Steps 3–4 are required before first run.
 
 ## Running (Manual)
 
