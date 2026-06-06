@@ -33,13 +33,31 @@ cp wallets.json.example wallets.json
 
 ## Quick Start (Windows)
 
+### Step 1 — Install dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### Step 2 — Configure environment
+```bash
+cp .env.example .env
+# Edit .env — fill in WALLET_ADDRESS and WALLET_PRIVATE_KEY at minimum
+```
+
+### Step 3 — Configure wallets
+```bash
+cp wallets.json.example wallets.json
+# Edit wallets.json — add your wallet (id, address, private_key)
+```
+
+### Step 4 — Launch
 Double-click **`start.bat`** — opens Agent CMD + Dashboard CMD + browser automatically.
 
 ```
 start.bat
 ```
 
-> Requires setup below first (.env configured).
+> `.env` and `wallets.json` are **not included in the repo** (contain private keys). Steps 2–3 are required before first run.
 
 ## Running (Manual)
 
