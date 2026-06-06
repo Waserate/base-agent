@@ -46,7 +46,7 @@ def plan_all_wallets() -> dict:
 
     today        = date.today()
     all_platforms = [k for k, v in CFG['platforms'].items()
-                     if isinstance(v, dict) and v.get('type') not in ('aero_vote',)]
+                     if isinstance(v, dict)]
 
     globally_assigned: set = set()   # platforms already picked by any wallet
     results: dict = {}
@@ -192,7 +192,7 @@ def _add_periodic_actions(actions: list, today: date) -> list:
     """
     Append megapot / deploy_contract to today's plan if their interval has passed.
     Each wallet's state.db is already active (dispatcher runs per-wallet context).
-    aero_vote ENTER: manual only (dashboard ADD TO PLAN). EXIT: maintenance job.
+    aero_vote ENTER: random candidate pool (rule engine picks it). EXIT: maintenance job.
     """
     used_minutes = set()
     for a in actions:
@@ -213,7 +213,7 @@ def _add_periodic_actions(actions: list, today: date) -> list:
 
     next_idx = max((a['idx'] for a in actions), default=0)
 
-    # aero_vote ENTER — manual only via dashboard ADD TO PLAN, not auto-scheduled
+    # aero_vote ENTER — handled by rule engine random selection, not periodic schedule
 
     # megapot — once per 7 days
     if _days_since_platform('megapot') >= 7:

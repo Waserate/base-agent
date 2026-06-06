@@ -970,7 +970,6 @@ def _the_rule_repick(exclude: set) -> str | None:
 
     all_p = [k for k, v in CFG['platforms'].items()
              if isinstance(v, dict)
-             and v.get('type') not in ('aero_vote',)
              and k not in exclude]
 
     candidates = _rule_engine.filter_candidates(
