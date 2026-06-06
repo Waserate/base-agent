@@ -20,7 +20,7 @@
     }
   ],
   "eth_min": 0.005,
-  "usdc_retain_usd": 10,
+  "usdc_retain_usd": 15,
   "weth_retain_eth": 0.005,
   "expiry_days": {
     "lend": [
@@ -41,8 +41,8 @@
     ]
   },
   "max_concurrent": {
-    "lp": 6,
+    "lp": 10,
     "lend": 7,
-    "borrow": 5
+    "borrow": 6
   }
 }
