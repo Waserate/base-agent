@@ -144,6 +144,9 @@ Agent currently executes one wallet at a time. Multi-wallet parallel execution i
 - **swap STF fix**: `swap_token_to_eth` now reads actual on-chain token balance before swap and caps `amount_in_wei` to it — prevents `SafeTransferFrom` revert when protocol fees cause withdrawn amount to be less than what state.db recorded
 - **swap dust skip**: skip swap if DEX quote output < 0.0001 ETH (~$0.35) to avoid wasting gas on dust amounts
 - **429 RPC fix**: agent now uses Alchemy (`DISCOVERY_RPC_URL`) for all TX calls when configured, eliminating `Too Many Requests` errors on public mainnet.base.org — **requires agent restart to take effect**
+- **daily_job withdraw crash fix**: moved `int(float(amount_wei))` parse inside the try/except in `daily_job` (run_now.py path) — a non-numeric `amount_wei` (aero_vote `tokenId|wei`, psm_hold `psm_hold_<bal>`) no longer raises an uncaught `ValueError` that aborted the entire expired-withdraw loop
+- **expiry override fix**: lend/aero_lp/beefy supply types now honor the plan's custom expiry instead of recomputing the default — the loop only recomputes expiry on a repick (when the override no longer applies)
+- **aero_vote address fix**: corrected `aero_vote.address` in contracts.json to the canonical VotingEscrow `0xeBf418Fe2512e7E6...` (was a wrong address only referenced by debug scripts; execution path already used the correct one)
 
 ## License
 

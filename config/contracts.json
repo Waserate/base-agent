@@ -897,7 +897,7 @@
     "aero_vote": {
       "name": "Aerodrome veVote",
       "token": "AERO",
-      "address": "0xeBf418Fe2512919F1ac447895dE1b03630F26C68",
+      "address": "0xeBf418Fe2512e7E6bd9b87a8F0f294aCDC67e6B4",
       "type": "aero_vote",
       "usdc_amount": 5,
       "expiry_days": [

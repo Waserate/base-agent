@@ -724,8 +724,8 @@ def daily_job():
                 failed_today.append(f'close_borrow_{platform}')
             continue
 
-        amt_int = int(float(amount_wei))
         try:
+            amt_int = int(float(amount_wei))
             txh = _withdraw(platform, amt_int)
             state.close_position(pos_id)
             state.record_cooldown(platform)
@@ -1173,7 +1173,10 @@ def _open_platform(platform_key: str, collateral_usd: float = 0.0) -> bool:
         try:
             log.info(f'[{exec_attempt}/{MAX_EXEC}] Supply/deposit to {current} ...')
             txh = _supply(current)
-            expiry_days = _expiry_for(current, p_cur)
+            # Keep plan override (set at function top) for the original platform;
+            # only recompute on a repick where the override no longer applies.
+            if current != platform_key:
+                expiry_days = _expiry_for(current, p_cur)
             state.add_position(current, p_cur.get('token', ''), amt, expiry_days, txh)
             state.log_daily_stat('lp' if p_cur['type'] == 'aero_lp' else 'lend')
             log.info(f'[OK] Opened {current} -> {txh}')
