@@ -141,6 +141,9 @@ Agent currently executes one wallet at a time. Multi-wallet parallel execution i
 - **aero_vote USD cap**: hard cap at \$10 USD per lock regardless of config value
 - **aero_vote lock formula fix**: corrected epoch rounding — `lock_days=7` now locks exactly 1 epoch (~7 days) instead of 2 epochs (~14 days) due to off-by-one in `+1` formula
 - **aero_vote in random candidate pool**: ENTER is randomly selected by the rule engine like any other platform — no forced re-entry after exit; maintenance job handles EXIT only
+- **swap STF fix**: `swap_token_to_eth` now reads actual on-chain token balance before swap and caps `amount_in_wei` to it — prevents `SafeTransferFrom` revert when protocol fees cause withdrawn amount to be less than what state.db recorded
+- **swap dust skip**: skip swap if DEX quote output < 0.0001 ETH (~$0.35) to avoid wasting gas on dust amounts
+- **429 RPC fix**: agent now uses Alchemy (`DISCOVERY_RPC_URL`) for all TX calls when configured, eliminating `Too Many Requests` errors on public mainnet.base.org — **requires agent restart to take effect**
 
 ## License
 
