@@ -31,7 +31,17 @@ cp wallets.json.example wallets.json
 # Edit wallets.json — add your wallet(s)
 ```
 
-## Running
+## Quick Start (Windows)
+
+Double-click **`start.bat`** — opens Agent CMD + Dashboard CMD + browser automatically.
+
+```
+start.bat
+```
+
+> Requires setup below first (.env configured).
+
+## Running (Manual)
 
 ```bash
 # Start dashboard (localhost:8766)

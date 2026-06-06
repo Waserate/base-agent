@@ -1,8 +1,9 @@
 @echo off
 title Base Agent Launcher
 
-echo Stopping existing Python processes...
-taskkill /F /IM python.exe /T >nul 2>&1
+echo Stopping previous Base Agent processes...
+taskkill /F /FI "WINDOWTITLE eq Base Agent" /T >nul 2>&1
+taskkill /F /FI "WINDOWTITLE eq Base Dashboard" /T >nul 2>&1
 timeout /t 1 /nobreak >nul
 
 echo Starting agent.py ...
