@@ -103,6 +103,16 @@ Add wallets via the dashboard ⊕ button, or manually edit `wallets.json` (see `
 
 Agent currently executes one wallet at a time. Multi-wallet parallel execution is planned.
 
+## Changelog
+
+### 2026-06-06
+- **start.bat**: launcher script — opens Agent CMD + Dashboard + browser in one click
+- **start.bat**: kill only Base Agent/Dashboard windows, not all Python processes
+- **aero_vote on-chain guard**: before entering new lock, scan wallet's veAERO NFTs on-chain via `ownerOf` range scan + `balanceOf` check — prevents duplicate positions even if DB is out of sync
+- **aero_vote orphan reconcile**: if NFT found on-chain but missing in DB, auto-insert into DB and skip new enter
+- **aero_vote price sanity**: reject if AERO price is outside \$0.05–\$50 range (guards against stale oracle returning wrong price)
+- **aero_vote USD cap**: hard cap at \$10 USD per lock regardless of config value
+
 ## License
 
 MIT
