@@ -147,6 +147,8 @@ Agent currently executes one wallet at a time. Multi-wallet parallel execution i
 - **daily_job withdraw crash fix**: moved `int(float(amount_wei))` parse inside the try/except in `daily_job` (run_now.py path) — a non-numeric `amount_wei` (aero_vote `tokenId|wei`, psm_hold `psm_hold_<bal>`) no longer raises an uncaught `ValueError` that aborted the entire expired-withdraw loop
 - **expiry override fix**: lend/aero_lp/beefy supply types now honor the plan's custom expiry instead of recomputing the default — the loop only recomputes expiry on a repick (when the override no longer applies)
 - **aero_vote address fix**: corrected `aero_vote.address` in contracts.json to the canonical VotingEscrow `0xeBf418Fe2512e7E6...` (was a wrong address only referenced by debug scripts; execution path already used the correct one)
+- **erc4626 dust fix**: `erc4626_withdraw_all` now uses `redeem(shares)` instead of `withdraw(convertToAssets(shares))` — burns the exact share balance, returns all underlying, leaves zero dust shares, and avoids the rounding edge that can revert "withdraw more than max"
+- **compound dust fix**: `compound_withdraw` now reads the current Comet `balanceOf` (principal + accrued interest) and withdraws that, instead of the originally-deposited amount — leaves zero dust in the protocol
 
 ## License
 

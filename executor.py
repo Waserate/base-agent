@@ -55,6 +55,9 @@ ERC4626_ABI = [
     {"name": "withdraw",        "type": "function", "stateMutability": "nonpayable",
      "inputs":  [{"name": "assets", "type": "uint256"}, {"name": "receiver", "type": "address"}, {"name": "owner", "type": "address"}],
      "outputs": [{"name": "shares", "type": "uint256"}]},
+    {"name": "redeem",          "type": "function", "stateMutability": "nonpayable",
+     "inputs":  [{"name": "shares", "type": "uint256"}, {"name": "receiver", "type": "address"}, {"name": "owner", "type": "address"}],
+     "outputs": [{"name": "assets", "type": "uint256"}]},
     {"name": "balanceOf",       "type": "function", "stateMutability": "view",
      "inputs":  [{"name": "account", "type": "address"}],
      "outputs": [{"name": "", "type": "uint256"}]},
@@ -242,6 +245,14 @@ def compound_withdraw(comet_addr: str, token_addr: str, amount_wei: int) -> str:
     comet_addr = Web3.to_checksum_address(comet_addr)
     token_addr = Web3.to_checksum_address(token_addr)
     comet = w3.eth.contract(address=comet_addr, abi=COMET_ABI)
+    # Withdraw the full current supplied balance (principal + accrued interest),
+    # not the originally-deposited amount — leaves zero dust in the protocol.
+    try:
+        _bal = _rpc_call(comet.functions.balanceOf(WALLET).call)
+        if _bal > 0:
+            amount_wei = _bal
+    except Exception:
+        pass  # fall back to caller-provided amount_wei
     tx = comet.functions.withdraw(token_addr, amount_wei).build_transaction(
         _tx_params()
     )
@@ -284,8 +295,10 @@ def erc4626_withdraw_all(vault_addr: str) -> str:
     shares = _rpc_call(vault.functions.balanceOf(WALLET).call)
     if shares == 0:
         raise RuntimeError(f'No shares in {vault_addr}')
-    assets = _rpc_call(vault.functions.convertToAssets(shares).call)
-    tx = vault.functions.withdraw(assets, WALLET, WALLET).build_transaction(
+    # redeem(shares) burns the exact share balance and returns all underlying assets —
+    # canonical full-exit. Avoids the withdraw(convertToAssets(shares)) rounding edge
+    # that can revert "withdraw more than max" and leaves zero dust shares behind.
+    tx = vault.functions.redeem(shares, WALLET, WALLET).build_transaction(
         _tx_params()
     )
     tx['gas'] = _gas_limit(tx, fallback=800_000)
