@@ -1631,11 +1631,18 @@ function renderIncidents(data) {
 
   const sevColor = { critical: 'var(--red)', warn: 'var(--gold)', info: '#888' };
   const statusBadge = {
-    detected:       ['DETECTED',  '#555', '#ccc'],
-    investigating:  ['🔧 FIXING', '#066', '#bff'],
-    resolved:       ['✅ RESOLVED','#0a3', '#bdf7c6'],
-    needs_approval: ['🟡 APPROVE','#660', '#fe9'],
-    alert:          ['🚨 ALERT',  '#600', '#f99'],
+    detected:       ['DETECTED',     '#555', '#ccc'],
+    investigating:  ['🔧 DIAGNOSING','#066', '#bff'],
+    diagnosed:      ['🔎 DIAGNOSED', '#234', '#9cf'],
+    resolved:       ['✅ RESOLVED',  '#0a3', '#bdf7c6'],
+    needs_approval: ['🟡 APPROVE',   '#660', '#fe9'],
+    alert:          ['🚨 ALERT',     '#600', '#f99'],
+  };
+  const catBadge = {
+    state_drift: ['STATE DRIFT', '#024'],
+    external:    ['EXTERNAL',    '#430'],
+    code_bug:    ['CODE BUG',    '#600'],
+    unknown:     ['UNKNOWN',     '#333'],
   };
 
   el.innerHTML = incs.map(i => {
@@ -1644,12 +1651,29 @@ function renderIncidents(data) {
     const recur = (i.days_seen && i.days_seen.length > 1)
       ? `<span style="color:var(--red);font-size:10px"> ⟳${i.days_seen.length}d</span>` : '';
     const cnt  = i.count > 1 ? `<span style="color:#888;font-size:10px"> ×${i.count}</span>` : '';
+
+    let diag = '';
+    const p = i.proposal;
+    if (p && (p.root_cause || p.proposed_action)) {
+      const cb = catBadge[p.category] || catBadge.unknown;
+      const conf = p.confidence ? ` · ${p.confidence}` : '';
+      const fixable = p.auto_fixable
+        ? `<span style="color:#0d8;font-size:10px"> ⚡auto-fixable</span>`
+        : `<span style="color:#888;font-size:10px"> needs you</span>`;
+      diag = `<div style="margin-top:5px;padding:6px 8px;background:#0d1420;border-left:2px solid #58f;border-radius:3px">
+        <span style="font-size:9px;padding:1px 5px;border-radius:6px;background:${cb[1]};color:#cde">${cb[0]}${conf}</span>${fixable}
+        <div style="font-size:11px;color:#cdd;margin-top:3px">${p.root_cause||''}</div>
+        ${p.proposed_action ? `<div style="font-size:11px;color:#8c9;margin-top:3px">▶ ${p.proposed_action}</div>` : ''}
+      </div>`;
+    }
+
     return `<div class="action-entry">
       <span style="color:${dot};font-size:14px;line-height:1">●</span>
       <span style="font-size:10px;padding:1px 6px;border-radius:8px;background:${sb[1]};color:${sb[2]};white-space:nowrap">${sb[0]}</span>
       <div class="action-body">
         <div class="action-platform">${i.title || i.signal}${recur}${cnt}</div>
-        <div class="action-detail">${(i.detail || '').slice(0,200)}</div>
+        <div class="action-detail">${(i.detail || '').slice(0,160)}</div>
+        ${diag}
         <div class="action-ts" style="font-size:10px">${(i.last_seen||'').replace('T',' ')} · ${i.signal}</div>
       </div>
     </div>`;

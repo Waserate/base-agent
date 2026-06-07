@@ -34,6 +34,11 @@ _CACHE     = os.path.join(_DIR, 'cache')
 _CURSOR    = os.path.join(_CACHE, 'watcher_cursor.json')
 POLL_S     = int(os.getenv('WATCHER_POLL_S', '300'))
 
+# Phase 2a: run Sonnet diagnosis on new incidents. Diagnose-only (read-only) —
+# no funds touched. At most DIAGNOSE_PER_SCAN per poll to bound quota usage.
+REMEDIATION_ENABLED = os.getenv('REMEDIATION_ENABLED', '1').lower() not in ('0', 'false', 'no')
+DIAGNOSE_PER_SCAN   = int(os.getenv('DIAGNOSE_PER_SCAN', '1'))
+
 # action_log step -> (signal, severity). Steps we treat as incidents.
 _STEP_SIGNALS = {
     'fail':     ('action_fail', 'warn'),
@@ -131,6 +136,27 @@ def _scan_action_log(cursors: dict):
         cursors[ckey] = len(entries)
 
 
+def _run_diagnoses():
+    """Phase 2a — diagnose freshly detected incidents (read-only Sonnet, bounded)."""
+    if not REMEDIATION_ENABLED:
+        return
+    pending = [i for i in store.get_all()['incidents'] if i['status'] == 'detected']
+    if not pending:
+        return
+    try:
+        import remediation_agent as ra
+    except Exception as e:
+        log.warning(f'remediation agent unavailable ({e}) — staying Phase 1 (detect only)')
+        return
+    for inc in pending[:DIAGNOSE_PER_SCAN]:
+        log.info(f'diagnosing {inc["id"]} ({inc["signal"]}/{inc["platform"]}) ...')
+        try:
+            diag = ra.diagnose(inc['id'])
+            log.info(f'  -> {diag.get("category","?")}: {diag.get("root_cause","")[:90]}')
+        except Exception as e:
+            log.error(f'  diagnosis crashed: {e}')
+
+
 def scan_once():
     store.set_agent_state('watching')
     cursors = _cursors()
@@ -138,6 +164,7 @@ def scan_once():
         _scan_maintenance()
         _scan_manual_withdraw()
         _scan_action_log(cursors)
+        _run_diagnoses()
     finally:
         _save_cursors(cursors)
         store.heartbeat()
