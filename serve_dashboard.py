@@ -1022,6 +1022,36 @@ def build_action_log():
         return {'entries': [], 'count': 0, 'error': str(e)}
 
 
+def build_incidents():
+    """Remediation watcher store: agent state + incidents (newest first).
+    `stale` flags that the watcher heartbeat is older than 2 poll cycles."""
+    import time as _t
+    from datetime import datetime as _dt
+    try:
+        import incident_store as _store
+        data = _store.get_all()
+    except Exception as e:
+        return {'agent_state': 'unknown', 'incidents': [], 'error': str(e)}
+
+    stale = True
+    upd   = data.get('updated')
+    if upd:
+        try:
+            age  = _t.time() - _dt.fromisoformat(upd).timestamp()
+            poll = int(os.getenv('WATCHER_POLL_S', '300'))
+            stale = age > poll * 2 + 60
+        except Exception:
+            pass
+    incs = sorted(data.get('incidents', []), key=lambda i: i.get('last_seen', ''), reverse=True)
+    return {
+        'agent_state': 'offline' if stale else data.get('agent_state', 'idle'),
+        'updated':     upd,
+        'stale':       stale,
+        'incidents':   incs,
+        'open_count':  sum(1 for i in incs if i.get('status') != 'resolved'),
+    }
+
+
 def do_reroll(idx: int) -> dict:
     """
     Reroll a TODO action by idx (1-based).
@@ -1329,6 +1359,8 @@ class Handler(SimpleHTTPRequestHandler):
                 self._json(build_rule_log())
             elif path == '/api/action_log':
                 self._json(build_action_log())
+            elif path == '/api/incidents':
+                self._json(build_incidents())
             elif path == '/api/history':
                 self._json(build_history())
             elif path == '/api/dust_positions':

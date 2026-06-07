@@ -823,6 +823,16 @@
   </div>
 </div>
 
+<!-- ── AI Watcher / Incidents ─────────────────────────── -->
+<div class="panel" id="incidents-panel">
+  <div class="panel-title">
+    🛠 AI WATCHER
+    <span id="watcher-status" style="font-size:11px;padding:2px 8px;border-radius:10px;margin-left:6px;background:#333;color:#aaa">—</span>
+    <span id="incidents-count"></span>
+  </div>
+  <div class="log-scroll" id="incidents-content"><div class="action-empty">Loading…</div></div>
+</div>
+
 <!-- ── Action History ─────────────────────────────────── -->
 <div class="panel history-panel">
   <div class="panel-title">ACTION HISTORY <span id="history-count"></span></div>
@@ -1592,6 +1602,70 @@ async function loadActionLog() {
   }
 }
 
+/* ── AI Watcher / Incidents ─────────────────────────── */
+function renderIncidents(data) {
+  const chip  = document.getElementById('watcher-status');
+  const count = document.getElementById('incidents-count');
+  const el    = document.getElementById('incidents-content');
+
+  const states = {
+    watching: ['👁 WATCHING',        '#0a3', '#bdf7c6'],
+    working:  ['🔧 WORKING',          '#066', '#bff'],
+    waiting:  ['🟡 WAITING APPROVAL', '#660', '#fe9'],
+    idle:     ['😴 IDLE',             '#333', '#aaa'],
+    offline:  ['⚠ OFFLINE',          '#600', '#f99'],
+    unknown:  ['— UNKNOWN',           '#333', '#aaa'],
+  };
+  const st = states[data.agent_state] || states.unknown;
+  chip.textContent = st[0];
+  chip.style.background = st[1];
+  chip.style.color = st[2];
+
+  const incs = data.incidents || [];
+  count.textContent = data.open_count ? `(${data.open_count} open)` : '';
+
+  if (!incs.length) {
+    el.innerHTML = '<div class="action-empty">No incidents — bot healthy ✅</div>';
+    return;
+  }
+
+  const sevColor = { critical: 'var(--red)', warn: 'var(--gold)', info: '#888' };
+  const statusBadge = {
+    detected:       ['DETECTED',  '#555', '#ccc'],
+    investigating:  ['🔧 FIXING', '#066', '#bff'],
+    resolved:       ['✅ RESOLVED','#0a3', '#bdf7c6'],
+    needs_approval: ['🟡 APPROVE','#660', '#fe9'],
+    alert:          ['🚨 ALERT',  '#600', '#f99'],
+  };
+
+  el.innerHTML = incs.map(i => {
+    const sb   = statusBadge[i.status] || statusBadge.detected;
+    const dot  = sevColor[i.severity] || '#888';
+    const recur = (i.days_seen && i.days_seen.length > 1)
+      ? `<span style="color:var(--red);font-size:10px"> ⟳${i.days_seen.length}d</span>` : '';
+    const cnt  = i.count > 1 ? `<span style="color:#888;font-size:10px"> ×${i.count}</span>` : '';
+    return `<div class="action-entry">
+      <span style="color:${dot};font-size:14px;line-height:1">●</span>
+      <span style="font-size:10px;padding:1px 6px;border-radius:8px;background:${sb[1]};color:${sb[2]};white-space:nowrap">${sb[0]}</span>
+      <div class="action-body">
+        <div class="action-platform">${i.title || i.signal}${recur}${cnt}</div>
+        <div class="action-detail">${(i.detail || '').slice(0,200)}</div>
+        <div class="action-ts" style="font-size:10px">${(i.last_seen||'').replace('T',' ')} · ${i.signal}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadIncidents() {
+  try {
+    const data = await fetch('/api/incidents').then(r => r.json());
+    renderIncidents(data);
+  } catch (e) {
+    document.getElementById('incidents-content').innerHTML =
+      '<div class="action-empty" style="color:var(--red)">Watcher load error</div>';
+  }
+}
+
 /* ── The Rule log ───────────────────────────────── */
 function renderRuleLog(data) {
   const el    = document.getElementById('rule-log-content');
@@ -2212,6 +2286,7 @@ async function loadAll() {
   loadRuleLog();
   loadHistory();
   loadDustCount();
+  loadIncidents();
 }
 
 /* ── History ─────────────────────────────────────── */
