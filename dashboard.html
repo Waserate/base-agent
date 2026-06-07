@@ -106,7 +106,7 @@
 
     /* ── Grid layouts ── */
     .top-grid {
-      display: grid; grid-template-columns: 220px 240px 1fr;
+      display: grid; grid-template-columns: 220px 260px 240px 1fr;
       gap: 12px; margin-bottom: 12px;
     }
 
@@ -725,6 +725,16 @@
     </div>
   </div>
 
+  <!-- AI Watcher / Incidents (right of AGENT STATUS) -->
+  <div class="panel" id="incidents-panel">
+    <div class="panel-title">
+      🛠 AI WATCHER
+      <span id="watcher-status" style="font-size:10px;padding:2px 7px;border-radius:10px;margin-left:4px;background:#333;color:#aaa">—</span>
+      <span id="incidents-count" style="font-size:11px"></span>
+    </div>
+    <div class="log-scroll" id="incidents-content" style="max-height:320px"><div class="action-empty">Loading…</div></div>
+  </div>
+
   <!-- Stats (center) -->
   <div class="panel">
     <div class="panel-title">STATS</div>
@@ -821,16 +831,6 @@
     <div class="panel-title">THE RULE — VALIDATION <span id="rule-log-count"></span></div>
     <div class="log-scroll" id="rule-log-content"><div class="rule-empty">No events yet</div></div>
   </div>
-</div>
-
-<!-- ── AI Watcher / Incidents ─────────────────────────── -->
-<div class="panel" id="incidents-panel">
-  <div class="panel-title">
-    🛠 AI WATCHER
-    <span id="watcher-status" style="font-size:11px;padding:2px 8px;border-radius:10px;margin-left:6px;background:#333;color:#aaa">—</span>
-    <span id="incidents-count"></span>
-  </div>
-  <div class="log-scroll" id="incidents-content"><div class="action-empty">Loading…</div></div>
 </div>
 
 <!-- ── Action History ─────────────────────────────────── -->
