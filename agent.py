@@ -1,4 +1,4 @@
-import os, json, random, logging, threading, importlib, sys
+import os, re, json, random, logging, threading, importlib, sys
 from datetime import date, datetime, timedelta
 from dotenv import load_dotenv
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -757,6 +757,10 @@ def daily_job():
         active_positions,
         health_results,
     )
+    _blocked = _deterministic_blocklist()
+    if _blocked:
+        candidates = [c for c in candidates if c not in _blocked]
+        log.info(f'short-circuit: excluding {len(_blocked)} platform(s) with deterministic reverts: {sorted(_blocked)}')
     random.shuffle(candidates)
 
     # Rule 8: deduplicate to_open by protocol — no same protocol twice in one day
@@ -914,12 +918,100 @@ _ACTION_LOG_MAX  = 200
 
 
 def _action_log(platform: str, step: str, detail: str,
-                txhash: str | None = None, usd_est: float | None = None):
-    """Set step_logger context and append action event to action_log.json."""
+                txhash: str | None = None, usd_est: float | None = None,
+                err: str | None = None):
+    """Set step_logger context and append action event to action_log.json.
+    Side-effect when step=='fail': scan for a deterministic revert selector.
+    `err` carries the FULL exception string (detail is truncated for display);
+    selector detection uses err when given so it isn't lost to truncation."""
     import step_logger as _sl
     dn = CFG['platforms'].get(platform, {}).get('display_name', platform)
     _sl.set_context(platform, dn)
     _sl.slog(step, detail, txhash=txhash, usd_est=usd_est)
+    if step == 'fail':
+        _check_deterministic_revert(platform, err or detail or '')
+
+
+# ── Phase 3a: bot short-circuit on deterministic reverts ─────────────────────
+
+_REVERT_COUNTS_PATH = os.path.join(_CACHE_DIR, 'revert_counts.json')
+_DETERMINISTIC_REVERT_THRESHOLD = 2   # same selector ≥2 → stop retrying, flag code_bug
+
+
+def _load_revert_counts() -> dict:
+    try:
+        with open(_REVERT_COUNTS_PATH, encoding='utf-8') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def _save_revert_counts(data: dict):
+    os.makedirs(_CACHE_DIR, exist_ok=True)
+    tmp = _REVERT_COUNTS_PATH + '.tmp'
+    with open(tmp, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=1)
+    os.replace(tmp, _REVERT_COUNTS_PATH)
+
+
+def _check_deterministic_revert(platform: str, error_str: str) -> bool:
+    """Extract 4-byte selector from error, increment per-platform counter.
+    Returns True if the same selector has now been seen ≥ threshold times
+    (meaning this is a deterministic revert — the bot should stop retrying
+    and flag it as a code_bug incident instead).
+    """
+    # look for 0x + exactly 8 hex chars in the error string
+    m = re.search(r'0x([0-9a-fA-F]{8})(?![0-9a-fA-F])', error_str)
+    if not m:
+        return False
+    selector = '0x' + m.group(1).lower()
+
+    counts = _load_revert_counts()
+    key    = f'{platform}:{selector}'
+    counts[key] = counts.get(key, 0) + 1
+    _save_revert_counts(counts)
+
+    cnt = counts[key]
+    log.debug(f'revert_counts[{key}] = {cnt}')
+
+    if cnt >= _DETERMINISTIC_REVERT_THRESHOLD:
+        log.warning(f'[SHORT-CIRCUIT] deterministic revert on {platform} '
+                    f'selector={selector} seen {cnt}x — flagging code_bug')
+        try:
+            import incident_store as _is
+            _is.record(
+                'deterministic_revert',
+                wallet=os.environ.get('WALLET_ID', 'default'),
+                platform=platform,
+                severity='warn' if cnt < 4 else 'critical',
+                title=f'{platform}: deterministic revert {selector} ({cnt}x)',
+                detail=(f'Same revert selector {selector} seen {cnt} times on {platform}. '
+                        f'Last error: {error_str[:200]}'),
+            )
+        except Exception as e:
+            log.error(f'incident_store.record failed: {e}')
+        return True
+    return False
+
+
+def _deterministic_blocklist() -> set:
+    """Platforms with an OPEN deterministic_revert incident for the current wallet.
+    These are excluded from candidate selection (the actual short-circuit) until a
+    code-fix resolves the incident — prevents re-picking a platform that reverts
+    deterministically day after day."""
+    wid = os.environ.get('WALLET_ID', 'default')
+    try:
+        import incident_store as _is
+        return {
+            i['platform'] for i in _is.get_all().get('incidents', [])
+            if i.get('signal') == 'deterministic_revert'
+            and i.get('status') != 'resolved'
+            and i.get('wallet', 'default') == wid
+            and i.get('platform')
+        }
+    except Exception as e:
+        log.warning(f'_deterministic_blocklist failed: {e}')
+        return set()
 
 
 def _rule_log(original: str, current: str, attempt: int, ok: bool, reason: str,
@@ -968,9 +1060,11 @@ def _the_rule_repick(exclude: set) -> str | None:
     except Exception:
         pass
 
+    _blocked = _deterministic_blocklist()
     all_p = [k for k, v in CFG['platforms'].items()
              if isinstance(v, dict)
-             and k not in exclude]
+             and k not in exclude
+             and k not in _blocked]
 
     candidates = _rule_engine.filter_candidates(
         all_p, active_set, set(), CFG['platforms'], active, health_res
@@ -1077,7 +1171,7 @@ def _open_platform(platform_key: str, collateral_usd: float = 0.0) -> bool:
             return True
         except Exception as e:
             log.error(f'[FAIL] compound_borrow [{platform_key}]: {e}')
-            _action_log(platform_key, 'fail', str(e)[:100])
+            _action_log(platform_key, 'fail', str(e)[:100], err=str(e))
             return False
 
     if p['type'] == 'mw_borrow':
@@ -1096,7 +1190,7 @@ def _open_platform(platform_key: str, collateral_usd: float = 0.0) -> bool:
             return True
         except Exception as e:
             log.error(f'[FAIL] mw_borrow [{platform_key}]: {e}')
-            _action_log(platform_key, 'fail', str(e)[:100])
+            _action_log(platform_key, 'fail', str(e)[:100], err=str(e))
             return False
 
     if p['type'] == 'fluid_borrow':
@@ -1110,7 +1204,7 @@ def _open_platform(platform_key: str, collateral_usd: float = 0.0) -> bool:
             return True
         except Exception as e:
             log.error(f'[FAIL] fluid_borrow [{platform_key}]: {e}')
-            _action_log(platform_key, 'fail', str(e)[:100])
+            _action_log(platform_key, 'fail', str(e)[:100], err=str(e))
             return False
 
     if p['type'] == 'aave_borrow':
@@ -1124,7 +1218,7 @@ def _open_platform(platform_key: str, collateral_usd: float = 0.0) -> bool:
             return True
         except Exception as e:
             log.error(f'[FAIL] aave_borrow [{platform_key}]: {e}')
-            _action_log(platform_key, 'fail', str(e)[:100])
+            _action_log(platform_key, 'fail', str(e)[:100], err=str(e))
             return False
 
     if p['type'] in ('uni_lp', 'pancake_lp'):
@@ -1145,7 +1239,7 @@ def _open_platform(platform_key: str, collateral_usd: float = 0.0) -> bool:
             return True
         except Exception as e:
             log.error(f'[FAIL] mint LP [{platform_key}]: {e}')
-            _action_log(platform_key, 'fail', str(e)[:100])
+            _action_log(platform_key, 'fail', str(e)[:100], err=str(e))
             return False
 
     # All other supply/lend/aero_lp types — with repick on execution failure
@@ -1177,14 +1271,34 @@ def _open_platform(platform_key: str, collateral_usd: float = 0.0) -> bool:
             # only recompute on a repick where the override no longer applies.
             if current != platform_key:
                 expiry_days = _expiry_for(current, p_cur)
-            state.add_position(current, p_cur.get('token', ''), amt, expiry_days, txh)
+            # For aero_lp: store actual gauge LP token balance, not ETH budget
+            # (dashboard uses amount_wei / totalSupply to compute USD share)
+            stored_amt = amt
+            if p_cur.get('type') == 'aero_lp':
+                try:
+                    from web3 import Web3 as _W3
+                    _gauge_addr = _W3.to_checksum_address(p_cur['gauge_address'])
+                    _gauge_abi  = [{"name": "balanceOf", "type": "function",
+                                    "stateMutability": "view",
+                                    "inputs": [{"name": "_account", "type": "address"}],
+                                    "outputs": [{"name": "", "type": "uint256"}]}]
+                    _gauge = executor.w3_read.eth.contract(address=_gauge_addr, abi=_gauge_abi)
+                    stored_amt = _gauge.functions.balanceOf(executor.WALLET).call()
+                    log.info(f'[aero_lp] gauge balance = {stored_amt} LP wei')
+                except Exception as _ge:
+                    log.warning(f'[aero_lp] gauge balance fetch failed, storing budget amt: {_ge}')
+            # Guard: skip add_position if active row already exists (prevents double-insert from scheduler race)
+            if state.get_active(current):
+                log.warning(f'[DEDUP] {current} already has active row — skipping add_position (TX={txh[:10]}...)')
+            else:
+                state.add_position(current, p_cur.get('token', ''), stored_amt, expiry_days, txh)
             state.log_daily_stat('lp' if p_cur['type'] == 'aero_lp' else 'lend')
             log.info(f'[OK] Opened {current} -> {txh}')
             _action_log(current, 'ok', f'supply | TX {txh[:10]}...', txhash=txh)
             return True
         except Exception as e:
             log.error(f'[{exec_attempt}/{MAX_EXEC}] FAIL supply [{current}]: {e}')
-            _action_log(current, 'fail', str(e)[:100])
+            _action_log(current, 'fail', str(e)[:100], err=str(e))
             # Sweep residual tokens (e.g. cbBTC from failed deposit) before trying next platform
             try:
                 import sweep_tokens as _sw

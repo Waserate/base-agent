@@ -19,6 +19,9 @@ Run:
 
 import os, sys, json, time, glob, logging
 from datetime import date
+from dotenv import load_dotenv
+
+load_dotenv()
 
 import incident_store as store
 
@@ -87,8 +90,31 @@ def _scan_maintenance():
         )
 
 
+def _pos_still_active(wid: str, pos_id) -> bool:
+    """Return True only if the position row is still status='active' in the wallet's DB.
+    Prevents manual_withdraw entries for already-closed positions from looping forever."""
+    if pos_id is None:
+        return True  # can't verify → assume active (conservative)
+    try:
+        import wallet_manager as _wm, sqlite3 as _sq
+        w = _wm.get_wallet(wid)
+        db_fn = (w or {}).get('state_db', f'state_{wid}.db')
+        db_path = os.path.join(_DIR, db_fn)
+        if not os.path.exists(db_path):
+            return True
+        conn = _sq.connect(db_path)
+        row = conn.execute(
+            "SELECT status FROM positions WHERE id=?", (pos_id,)
+        ).fetchone()
+        conn.close()
+        return (row is None) or (row[0] == 'active')
+    except Exception:
+        return True  # can't verify → assume active
+
+
 def _scan_manual_withdraw():
-    """manual_withdraw_<wid>.json -> one incident per stuck position (7-retry exhausted)."""
+    """manual_withdraw_<wid>.json -> one incident per stuck position (7-retry exhausted).
+    Skips entries where DB row is already closed — prevents infinite rediagnose loops."""
     for path in glob.glob(os.path.join(_CACHE, 'manual_withdraw_*.json')):
         wid     = _wid_from(path, 'manual_withdraw_')
         entries = _load_json(path, [])
@@ -98,6 +124,9 @@ def _scan_manual_withdraw():
             if pid in seen:
                 continue
             seen.add(pid)
+            if not _pos_still_active(wid, pid):
+                log.debug(f'[manual-withdraw] skip pos#{pid} {e.get("platform","")} — already closed in DB')
+                continue
             store.record(
                 'withdraw_failed', wallet=wid, platform=e.get('platform', ''),
                 pos_id=pid, severity='warn',
@@ -137,7 +166,7 @@ def _scan_action_log(cursors: dict):
 
 
 def _run_diagnoses():
-    """Phase 2a — diagnose freshly detected incidents (read-only Sonnet, bounded)."""
+    """Phase 2a+2b — diagnose freshly detected incidents; run live remediation if enabled."""
     if not REMEDIATION_ENABLED:
         return
     pending = [i for i in store.get_all()['incidents'] if i['status'] == 'detected']
@@ -152,9 +181,182 @@ def _run_diagnoses():
         log.info(f'diagnosing {inc["id"]} ({inc["signal"]}/{inc["platform"]}) ...')
         try:
             diag = ra.diagnose(inc['id'])
-            log.info(f'  -> {diag.get("category","?")}: {diag.get("root_cause","")[:90]}')
+            cat  = diag.get('category', '?')
+            log.info(f'  -> {cat}: {diag.get("root_cause","")[:90]}')
+
+            # Phase 2b: run live remediation for auto-fixable state_drift incidents
+            if (ra.MODE == 'live'
+                    and cat == 'state_drift'
+                    and diag.get('auto_fixable')
+                    and diag.get('confidence', 'low') in ('medium', 'high')):
+                log.info(f'  [2b] auto-fixable state_drift — remediating ...')
+                try:
+                    result = ra.remediate(inc['id'])
+                    log.info(f'  [2b] remediate -> {result.get("status")}')
+                except Exception as e2:
+                    log.error(f'  [2b] remediate crashed: {e2}')
+            # Phase 3: code_bug incidents → code_fix_agent (queued via remediate)
+            elif ra.MODE == 'live' and cat == 'code_bug':
+                log.info(f'  [3] code_bug — queuing code-fix agent ...')
+                try:
+                    ra.remediate(inc['id'])   # dispatches code_fix_agent internally
+                except Exception as e2:
+                    log.error(f'  [3] code_fix dispatch crashed: {e2}')
+            elif cat in ('external', 'unknown'):
+                # Check if bot already self-resolved — no user action needed
+                root = (diag.get('root_cause') or '').lower()
+                self_resolved = any(k in root for k in (
+                    'self-resolved', 'self resolved', 'no immediate action',
+                    'already resolved', 'recovery succeeded', 'repicked',
+                ))
+                if self_resolved:
+                    store.update(inc['id'], status='resolved')
+                    log.info(f'  -> auto-resolved (external but self-resolved by bot)')
+                else:
+                    store.update(inc['id'], status='needs_manual')
+                    log.info(f'  -> marked needs_manual (category={cat}, waiting on human)')
         except Exception as e:
             log.error(f'  diagnosis crashed: {e}')
+
+
+def _run_remediations():
+    """Phase 2b sweep — remediate already-diagnosed auto_fixable incidents (e.g. after watcher restart)."""
+    if not REMEDIATION_ENABLED:
+        return
+    diagnosed = [i for i in store.get_all()['incidents']
+                 if i['status'] == 'diagnosed'
+                 and i.get('auto_fixable')
+                 and i.get('confidence', 'low') in ('medium', 'high')]
+    if not diagnosed:
+        return
+    try:
+        import remediation_agent as ra
+    except Exception as e:
+        log.warning(f'remediation agent unavailable ({e})')
+        return
+    if ra.MODE != 'live':
+        return
+    for inc in diagnosed[:DIAGNOSE_PER_SCAN]:
+        cat = inc.get('category', '')
+        if cat not in ('state_drift', 'code_bug'):
+            continue
+        log.info(f'  [sweep] {inc["id"]} ({cat}/{inc.get("platform","")}) — remediating ...')
+        try:
+            result = ra.remediate(inc['id'])
+            log.info(f'  [sweep] -> {result.get("status")}')
+        except Exception as e2:
+            log.error(f'  [sweep] crashed: {e2}')
+
+
+def _scan_positions_onchain():
+    """Proactive ghost-detection: scan every active DB position for zero on-chain balance.
+    Creates an incident immediately — no need to wait for bot withdrawal failure.
+    Runs on every poll cycle; incident_store deduplication prevents spam."""
+    try:
+        import remediation_agent as ra
+        import wallet_manager as _wm
+        import sqlite3 as _sq
+    except Exception as e:
+        log.warning(f'[onchain-scan] import failed: {e}')
+        return
+
+    wallets = _wm.load_wallets()
+    if not wallets:
+        return
+
+    for w in wallets:
+        wid   = w.get('id', 'default')
+        db_fn = w.get('state_db', f'state_{wid}.db')
+        db_path = os.path.join(_DIR, db_fn)
+        if not os.path.exists(db_path):
+            continue
+        try:
+            conn = _sq.connect(db_path)
+            rows = conn.execute(
+                "SELECT id, platform FROM positions WHERE status='active'"
+            ).fetchall()
+            conn.close()
+        except Exception as e:
+            log.warning(f'[onchain-scan] DB read failed {db_fn}: {e}')
+            continue
+
+        for pos_id, platform in rows:
+            try:
+                result = ra._onchain_balance(platform, wid)
+            except Exception as e:
+                log.debug(f'[onchain-scan] pos#{pos_id} {platform} check error: {e}')
+                continue
+
+            if 'GHOST POSITION' in result:
+                log.info(f'[onchain-scan] ghost detected pos#{pos_id} {platform} wallet={wid}')
+                store.record(
+                    'withdraw_failed', wallet=wid, platform=platform,
+                    pos_id=pos_id, severity='warn',
+                    title=f'{platform}#{pos_id} ghost — balance=0 on-chain',
+                    detail=f'on-chain balance = 0 but DB status=active. {result}',
+                )
+
+
+_CLEANUP_DAYS = int(os.getenv('POSITION_CLEANUP_DAYS', '7'))  # delete closed rows older than N days
+
+def _cleanup_closed_positions():
+    """Two-pass cleanup every poll cycle:
+    Pass 1 — cross-DB dedup: if platform+entry_date is closed in ANY DB, close it in ALL DBs.
+             Prevents ghost-retry when same position drifted into multiple DBs.
+    Pass 2 — age purge: delete closed rows with expiry_date older than POSITION_CLEANUP_DAYS."""
+    try:
+        import sqlite3 as _sq, wallet_manager as _wm
+        from datetime import timedelta
+
+        dbs = []
+        for w in _wm.load_wallets():
+            db = w.get('state_db')
+            if db:
+                p = os.path.join(_DIR, db)
+                if p not in dbs:
+                    dbs.append(p)
+        dbs = [p for p in dbs if os.path.exists(p)]
+
+        # Pass 1: collect all (platform, entry_date) keys that are closed in any DB
+        closed_keys = set()
+        for db_path in dbs:
+            conn = _sq.connect(db_path)
+            rows = conn.execute(
+                "SELECT platform, entry_date FROM positions WHERE status='closed'"
+            ).fetchall()
+            conn.close()
+            closed_keys.update(rows)
+
+        # Close matching active rows in every other DB
+        for db_path in dbs:
+            conn = _sq.connect(db_path)
+            synced = 0
+            for platform, entry_date in closed_keys:
+                cur = conn.execute(
+                    "UPDATE positions SET status='closed' WHERE platform=? AND entry_date=? AND status='active'",
+                    (platform, entry_date)
+                )
+                synced += cur.rowcount
+            conn.commit()
+            conn.close()
+            if synced:
+                log.info(f'[cleanup] {os.path.basename(db_path)}: cross-DB synced {synced} active→closed')
+
+        # Pass 2: delete old closed rows
+        cutoff = (date.today() - timedelta(days=_CLEANUP_DAYS)).isoformat()
+        for db_path in dbs:
+            conn = _sq.connect(db_path)
+            cur = conn.execute(
+                "DELETE FROM positions WHERE status='closed' AND expiry_date <= ?",
+                (cutoff,)
+            )
+            deleted = cur.rowcount
+            conn.commit()
+            conn.close()
+            if deleted:
+                log.info(f'[cleanup] {os.path.basename(db_path)}: purged {deleted} old closed rows (expiry <= {cutoff})')
+    except Exception as e:
+        log.warning(f'[cleanup] failed: {e}')
 
 
 def scan_once():
@@ -164,7 +366,10 @@ def scan_once():
         _scan_maintenance()
         _scan_manual_withdraw()
         _scan_action_log(cursors)
+        _scan_positions_onchain()
         _run_diagnoses()
+        _run_remediations()
+        _cleanup_closed_positions()
     finally:
         _save_cursors(cursors)
         store.heartbeat()

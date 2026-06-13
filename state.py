@@ -1,7 +1,20 @@
 import sqlite3, os
 from datetime import date, timedelta
 
-DB_PATH = os.environ.get('STATE_DB_PATH', os.path.join(os.path.dirname(__file__), 'state.db'))
+def _default_db_path():
+    """Resolve STATE_DB_PATH. Prefer explicit env; else last_active wallet's DB.
+    Legacy state.db is gone — never recreate it. Raise only if no wallet exists."""
+    p = os.environ.get('STATE_DB_PATH')
+    if p:
+        return p
+    import wallet_manager as _wm
+    wid = _wm.get_last_active()
+    w   = _wm.get_wallet(wid) if wid else None
+    if w and w.get('state_db'):
+        return os.path.join(os.path.dirname(__file__), w['state_db'])
+    raise RuntimeError('STATE_DB_PATH unset and no wallet found in wallets.json')
+
+DB_PATH = _default_db_path()
 
 def _conn():
     return sqlite3.connect(DB_PATH)
@@ -98,8 +111,30 @@ def add_position(platform, token, amount_wei, expiry_days, tx_hash):
         )
 
 def close_position(pos_id):
+    """Close position in current DB, then immediately sync to all other known DBs
+    by matching platform+entry_date — prevents orphan active rows in legacy DBs."""
+    _DIR = os.path.dirname(os.path.abspath(__file__))
     with _conn() as c:
         c.execute("UPDATE positions SET status='closed' WHERE id=?", (pos_id,))
+        row = c.execute(
+            "SELECT platform, entry_date FROM positions WHERE id=?", (pos_id,)
+        ).fetchone()
+    if not row:
+        return
+    platform, entry_date = row
+    # Sync closure to all other state DBs (cross-DB dedup)
+    import glob as _glob
+    for db_path in _glob.glob(os.path.join(_DIR, 'state*.db')):
+        if os.path.abspath(db_path) == os.path.abspath(DB_PATH):
+            continue
+        try:
+            with sqlite3.connect(db_path) as cx:
+                cx.execute(
+                    "UPDATE positions SET status='closed' WHERE platform=? AND entry_date=? AND status='active'",
+                    (platform, entry_date)
+                )
+        except Exception:
+            pass
 
 def all_positions():
     with _conn() as c:

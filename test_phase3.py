@@ -37,7 +37,7 @@ print('TEST 2: WITHDRAW  Spark vault -> USDS -> USDC -> ETH')
 print('=' * 60)
 
 # Insert fake expired spark_usds position
-conn = sqlite3.connect('state.db')
+conn = sqlite3.connect(state.DB_PATH)
 conn.execute(
     "INSERT INTO positions (platform,token,amount_wei,entry_date,expiry_date,tx_hash,status) "
     "VALUES ('spark_usds','USDS','20000000000000000000','2026-05-18','2026-05-28','0x1234','active')"

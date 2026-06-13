@@ -93,18 +93,16 @@ def record(signal: str, *, wallet: str = 'default', platform: str = '',
             # resolved before — a new occurrence means the fix didn't hold.
             # Reopen as a fresh detection but carry recurrence history.
             break
-        last = datetime.fromisoformat(inc['last_seen'])
-        if (datetime.fromisoformat(now) - last).total_seconds() <= cooldown:
-            inc['count']    += 1
-            inc['last_seen'] = now
-            if today not in inc['days_seen']:
-                inc['days_seen'].append(today)
-            # escalate severity if it keeps recurring across days
-            if len(inc['days_seen']) >= 3 and inc['severity'] != 'critical':
-                inc['severity'] = 'critical'
-            _save(data)
-            return inc
-        break  # same key but past cooldown → new incident
+        # non-resolved: always update in-place regardless of cooldown elapsed.
+        # Never create a duplicate open incident for the same key.
+        inc['count']    += 1
+        inc['last_seen'] = now
+        if today not in inc['days_seen']:
+            inc['days_seen'].append(today)
+        if len(inc['days_seen']) >= 3 and inc['severity'] != 'critical':
+            inc['severity'] = 'critical'
+        _save(data)
+        return inc
 
     # carry recurrence history from any prior (incl. resolved) incident of this key
     prior_days = []

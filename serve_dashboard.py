@@ -354,13 +354,24 @@ def _live_usd_est(pid: int, ptype: str, token: str, amount_wei, p_cfg: dict):
 
         # ── Aerodrome AMM LP (LP token amount, staked in gauge) ───────────────
         elif ptype == 'aero_lp':
-            pool_addr = p_cfg.get('pool_address') or p_cfg.get('address')
+            pool_addr  = p_cfg.get('pool_address') or p_cfg.get('address')
+            gauge_addr = p_cfg.get('gauge_address')
             if pool_addr:
                 pool = executor.w3_read.eth.contract(
                     address=Web3.to_checksum_address(pool_addr), abi=_AMM_POOL_ABI)
                 r0, r1, _ = pool.functions.getReserves().call()
                 total_sup  = pool.functions.totalSupply().call()
-                lp_bal     = int(str(amount_wei))
+                # Use on-chain gauge balance — amount_wei stores ETH budget, not LP token wei
+                _GAUGE_BAL_ABI = [{"name": "balanceOf", "type": "function",
+                    "stateMutability": "view",
+                    "inputs": [{"name": "_account", "type": "address"}],
+                    "outputs": [{"name": "", "type": "uint256"}]}]
+                if gauge_addr:
+                    gauge  = executor.w3_read.eth.contract(
+                        address=Web3.to_checksum_address(gauge_addr), abi=_GAUGE_BAL_ABI)
+                    lp_bal = gauge.functions.balanceOf(executor.WALLET).call()
+                else:
+                    lp_bal = int(str(amount_wei))
                 if total_sup > 0 and lp_bal > 0:
                     # Aerodrome sorts tokens by address — may differ from config order
                     cfg_t0_addr = p_cfg.get('token0_address', '')
@@ -1044,11 +1055,12 @@ def build_incidents():
             pass
     incs = sorted(data.get('incidents', []), key=lambda i: i.get('last_seen', ''), reverse=True)
     return {
-        'agent_state': 'offline' if stale else data.get('agent_state', 'idle'),
-        'updated':     upd,
-        'stale':       stale,
-        'incidents':   incs,
-        'open_count':  sum(1 for i in incs if i.get('status') != 'resolved'),
+        'agent_state':       'offline' if stale else data.get('agent_state', 'idle'),
+        'updated':           upd,
+        'stale':             stale,
+        'incidents':         incs,
+        'open_count':        sum(1 for i in incs if i.get('status') != 'resolved'),
+        'remediation_mode':  os.getenv('REMEDIATION_MODE', 'diagnose'),
     }
 
 
@@ -1761,6 +1773,115 @@ class Handler(SimpleHTTPRequestHandler):
             t.start()
             self._json({'ok': True, 'wallet_id': entry['id'],
                         'message': 'Wallet added — on-chain recovery running in background'})
+            return
+
+        if path == '/api/fix_approve':
+            length = int(self.headers.get('Content-Length', 0))
+            try:
+                body = json.loads(self.rfile.read(length)) if length else {}
+            except Exception:
+                body = {}
+            incident_id = body.get('incident_id', '').strip()
+            if not incident_id:
+                self._json({'error': 'incident_id required'}, 400)
+                return
+            try:
+                import code_fix_agent
+                result = code_fix_agent.apply_fix(incident_id)
+                self._json(result)
+            except Exception as e:
+                self._json({'ok': False, 'error': str(e)}, 500)
+            return
+
+        if path == '/api/close_position':
+            length = int(self.headers.get('Content-Length', 0))
+            try:
+                body = json.loads(self.rfile.read(length)) if length else {}
+            except Exception:
+                body = {}
+            pos_id    = body.get('pos_id')
+            wallet_id = body.get('wallet_id', '')
+            if not pos_id:
+                self._json({'error': 'pos_id required'}, 400)
+                return
+            try:
+                import sqlite3 as _sq, wallet_manager as _wm, os as _os
+                _BASE = _os.path.dirname(_os.path.abspath(__file__))
+
+                # Build candidate DB list: specific wallet first, then all wallets
+                def _db_candidates():
+                    if wallet_id and wallet_id not in ('default', ''):
+                        try:
+                            w = _wm.get_wallet(wallet_id)
+                            db = w.get('state_db')
+                            if db:
+                                yield _os.path.join(_BASE, db)
+                                return
+                        except Exception:
+                            pass
+                    # No wallet hint — try all known wallet DBs
+                    for w in _wm.load_wallets():
+                        db = w.get('state_db')
+                        if db:
+                            p = _os.path.join(_BASE, db)
+                            if _os.path.exists(p):
+                                yield p
+
+                closed_in = None
+                for db_path in _db_candidates():
+                    if not _os.path.exists(db_path):
+                        continue
+                    c = _sq.connect(db_path)
+                    c.execute("UPDATE positions SET status='closed' WHERE id=?", (int(pos_id),))
+                    c.commit()
+                    affected = c.total_changes
+                    c.close()
+                    if affected > 0:
+                        closed_in = db_path
+                        break
+
+                if closed_in:
+                    self._json({'ok': True, 'pos_id': int(pos_id), 'db': closed_in})
+                else:
+                    self._json({'ok': False, 'error': f'pos_id {pos_id} not found in any wallet DB'}, 404)
+            except Exception as e:
+                self._json({'ok': False, 'error': str(e)}, 500)
+            return
+
+        if path == '/api/incident_dismiss':
+            length = int(self.headers.get('Content-Length', 0))
+            try:
+                body = json.loads(self.rfile.read(length)) if length else {}
+            except Exception:
+                body = {}
+            incident_id = body.get('incident_id', '').strip()
+            if not incident_id:
+                self._json({'error': 'incident_id required'}, 400)
+                return
+            try:
+                import incident_store as _is
+                _is.update(incident_id, status='resolved')
+                self._json({'ok': True, 'incident_id': incident_id})
+            except Exception as e:
+                self._json({'ok': False, 'error': str(e)}, 500)
+            return
+
+        if path == '/api/fix_reject':
+            length = int(self.headers.get('Content-Length', 0))
+            try:
+                body = json.loads(self.rfile.read(length)) if length else {}
+            except Exception:
+                body = {}
+            incident_id = body.get('incident_id', '').strip()
+            if not incident_id:
+                self._json({'error': 'incident_id required'}, 400)
+                return
+            try:
+                import code_fix_agent
+                result = code_fix_agent.reject_fix(incident_id)
+                self._json(result)
+            except Exception as e:
+                self._json({'ok': False, 'error': str(e)}, 500)
             return
 
         else:
