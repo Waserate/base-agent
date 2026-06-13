@@ -1757,7 +1757,7 @@ function renderIncidents(data) {
       </div>`;
     }
 
-    const dismissBtn = (i.status === 'needs_manual')
+    const dismissBtn = (['needs_manual','diagnosed','detected'].includes(i.status))
       ? `<button onclick="doIncidentDismiss('${i.id}', this)"
            style="font-size:10px;padding:2px 8px;margin-left:6px;background:#333;color:#fd9;border:1px solid #664;border-radius:4px;cursor:pointer">
            ✓ DISMISS</button>`
