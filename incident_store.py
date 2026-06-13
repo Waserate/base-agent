@@ -86,15 +86,17 @@ def record(signal: str, *, wallet: str = 'default', platform: str = '',
     today = date.today().isoformat()
     now   = _now()
 
-    for inc in data['incidents']:
+    # Scan newest-first so we find the most-recent non-resolved incident first.
+    # Scanning oldest-first caused a bug: the loop broke on the first 'resolved' row
+    # (which was always the oldest) and fell through to create a duplicate open incident
+    # even when a later 'diagnosed'/'needs_manual' row existed for the same key.
+    for inc in reversed(data['incidents']):
         if inc['key'] != key:
             continue
-        if inc['status'] in ('resolved',):
-            # resolved before — a new occurrence means the fix didn't hold.
-            # Reopen as a fresh detection but carry recurrence history.
-            break
-        # non-resolved: always update in-place regardless of cooldown elapsed.
-        # Never create a duplicate open incident for the same key.
+        if inc['status'] == 'resolved':
+            continue  # skip resolved rows — keep scanning for a non-resolved one
+        # Found the most-recent non-resolved incident for this key.
+        # Update in-place; never create a duplicate open incident.
         inc['count']    += 1
         inc['last_seen'] = now
         if today not in inc['days_seen']:
@@ -104,7 +106,7 @@ def record(signal: str, *, wallet: str = 'default', platform: str = '',
         _save(data)
         return inc
 
-    # carry recurrence history from any prior (incl. resolved) incident of this key
+    # No non-resolved incident found — carry recurrence history from any prior row
     prior_days = []
     for inc in data['incidents']:
         if inc['key'] == key:
@@ -134,6 +136,47 @@ def record(signal: str, *, wallet: str = 'default', platform: str = '',
         data['incidents'] = data['incidents'][-MAX_INCIDENTS:]
     _save(data)
     return inc
+
+
+def cleanup_duplicates() -> int:
+    """For each incident key:
+    - Non-resolved: keep only the most-recent row; merge count + days_seen from older duplicates.
+    - Resolved: keep only the most-recent resolved row (1 per key — history without clutter).
+    Returns count of rows removed."""
+    data = _load()
+    seen_open: dict = {}      # key → newest non-resolved incident kept
+    seen_resolved: set = set()  # keys for which we already kept 1 resolved row
+    to_keep = []
+
+    for inc in reversed(data['incidents']):   # newest first
+        key = inc['key']
+        if inc['status'] == 'resolved':
+            if key not in seen_resolved:
+                seen_resolved.add(key)
+                to_keep.append(inc)
+            # else: older resolved duplicate — drop it
+            continue
+        # non-resolved
+        if key not in seen_open:
+            seen_open[key] = inc
+            to_keep.append(inc)
+        else:
+            # Older non-resolved duplicate — merge into keeper, then drop
+            keeper = seen_open[key]
+            keeper['count'] += inc.get('count', 1)
+            for d in inc.get('days_seen', []):
+                if d not in keeper['days_seen']:
+                    keeper['days_seen'].append(d)
+            keeper['days_seen'].sort()
+            if len(keeper['days_seen']) >= 3 and keeper['severity'] != 'critical':
+                keeper['severity'] = 'critical'
+
+    to_keep.reverse()   # restore chronological order
+    purged = len(data['incidents']) - len(to_keep)
+    if purged > 0:
+        data['incidents'] = to_keep
+        _save(data)
+    return purged
 
 
 def open_keys() -> set:

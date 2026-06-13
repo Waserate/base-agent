@@ -107,7 +107,8 @@ def _pos_still_active(wid: str, pos_id) -> bool:
             "SELECT status FROM positions WHERE id=?", (pos_id,)
         ).fetchone()
         conn.close()
-        return (row is None) or (row[0] == 'active')
+        # row is None = deleted by age-purge or never existed → position is gone, not active
+        return row is not None and row[0] == 'active'
     except Exception:
         return True  # can't verify → assume active
 
@@ -370,6 +371,9 @@ def scan_once():
         _run_diagnoses()
         _run_remediations()
         _cleanup_closed_positions()
+        n = store.cleanup_duplicates()
+        if n:
+            log.info(f'[dedup] merged {n} duplicate open incident(s)')
     finally:
         _save_cursors(cursors)
         store.heartbeat()
