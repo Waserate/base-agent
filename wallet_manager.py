@@ -68,7 +68,19 @@ def switch_context(wallet_id: str) -> tuple:
     os.environ['WALLET_PRIVATE_KEY'] = w.get('private_key', '')
     os.environ['STATE_DB_PATH']      = os.path.join(base_dir, w.get('state_db', f'state_{wallet_id}.db'))
 
-    for mod_name in ('executor', 'state'):
+    # Reload executor + state FIRST (they read the new env), then every module
+    # that captured executor.WALLET / wallet-bound state at import time. Order
+    # matters: dependents re-run `WALLET = executor.WALLET` against the freshly
+    # reloaded executor. Skipping this caused swap recipients to stay on the
+    # previously-active wallet — ifond paid while test received the tokens.
+    # (swap.py now reads executor.WALLET live, but reloading is kept as defense
+    # in depth for withdraw_all/sweep_tokens/onchain_recovery balance reads.)
+    # executor + state read the new env directly. swap/sweep/withdraw/recovery
+    # capture executor.WALLET. megapot/deploy hold their OWN frozen PRIVATE_KEY +
+    # WALLET + recipient from env — reload re-reads them for the switched wallet.
+    for mod_name in ('executor', 'state', 'swap', 'sweep_tokens',
+                     'withdraw_all', 'onchain_recovery',
+                     'megapot', 'megapot_claim', 'deploy_contract'):
         if mod_name in sys.modules:
             importlib.reload(sys.modules[mod_name])
 
