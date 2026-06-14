@@ -23,7 +23,11 @@ with open(os.path.join(os.path.dirname(__file__), 'config/contracts.json')) as f
 DEX       = CFG['dex']
 WETH_ADDR = Web3.to_checksum_address(CFG['tokens']['WETH']['address'])
 w3        = executor.w3
-WALLET    = executor.WALLET
+# NOTE: do NOT freeze the wallet address here. executor.WALLET changes when
+# wallet_manager.switch_context() reloads executor for a different wallet.
+# A frozen copy caused swaps to send bought tokens to the WRONG wallet
+# (recipient stayed on the first-imported wallet while a switched wallet paid).
+# Always read executor.WALLET live at call time. See ERRORS.md "swap misdelivery".
 
 _SWAP_ADDR_SYM = {t['address'].lower(): s for s, t in CFG['tokens'].items()}
 
@@ -209,7 +213,7 @@ def _unwrap_weth() -> None:
     import time
     weth = w3.eth.contract(address=WETH_ADDR, abi=WETH_ABI)
     executor.wait_for_sync()  # wait until read node reflects latest WETH balance (prior swap TX)
-    bal = weth.functions.balanceOf(WALLET).call()
+    bal = weth.functions.balanceOf(executor.WALLET).call()
     if bal == 0:
         return
     tx = weth.functions.withdraw(bal).build_transaction(executor._tx_params())
@@ -329,7 +333,7 @@ def _get_token_eth_expected(token_addr: str, token_amount_wei: int) -> int | Non
 
 def wrap_eth(amount_wei: int) -> None:
     """Wrap native ETH -> WETH. Use before supplying to WETH-based platforms."""
-    eth_bal = w3.eth.get_balance(WALLET)
+    eth_bal = w3.eth.get_balance(executor.WALLET)
     min_wei = Web3.to_wei(executor.MIN_ETH, 'ether')
     if eth_bal < amount_wei + min_wei:
         raise ConfigError(
@@ -411,7 +415,7 @@ def swap_eth_to_token(token_out_addr: str, amount_out_wei: int) -> str:
         log.info(f'Chainlink guard OK | ETH/USD: ${eth_price:.2f} | fair: {Web3.from_wei(expected_eth,"ether"):.6f}')
 
     # 3. ETH balance check
-    eth_bal  = w3.eth.get_balance(WALLET)
+    eth_bal  = w3.eth.get_balance(executor.WALLET)
     min_wei  = Web3.to_wei(executor.MIN_ETH, 'ether')
     if eth_bal < amount_in_max + min_wei:
         raise ConfigError(
@@ -429,20 +433,34 @@ def swap_eth_to_token(token_out_addr: str, amount_out_wei: int) -> str:
     router_abi = PANCAKE_ROUTER_V3_ABI if router_type == 'pancake' else ROUTER_V3_ABI
     router = w3.eth.contract(address=Web3.to_checksum_address(router_addr), abi=router_abi)
     deadline = w3.eth.get_block('latest')['timestamp'] + 300
+    recipient = executor.WALLET   # MUST equal the signer — never a frozen copy
+    out_token = w3.eth.contract(address=Web3.to_checksum_address(token_out_addr), abi=_BAL_ABI)
+    bal_before = out_token.functions.balanceOf(recipient).call()
     if router_type == 'pancake':
-        params = (WETH_ADDR, token_out_addr, fee, WALLET, deadline, amount_out_wei, amount_in_max, 0)
+        params = (WETH_ADDR, token_out_addr, fee, recipient, deadline, amount_out_wei, amount_in_max, 0)
     else:
-        params = (WETH_ADDR, token_out_addr, fee, WALLET, amount_out_wei, amount_in_max, 0)
+        params = (WETH_ADDR, token_out_addr, fee, recipient, amount_out_wei, amount_in_max, 0)
     tx = router.functions.exactOutputSingle(params).build_transaction(executor._tx_params())
     tx['gas'] = executor._gas_limit(tx)
     txh = executor._send(tx)
+    # TRIPWIRE: confirm the SIGNING wallet actually received the token. If a future
+    # change ever re-introduces a stale/mismatched recipient, the bought token would
+    # land in another wallet and this check fails loudly instead of silently draining.
+    executor.wait_for_sync()
+    bal_after = out_token.functions.balanceOf(recipient).call()
+    received  = bal_after - bal_before
+    if received < amount_out_wei * 9 // 10:
+        raise SwapExecutionError(
+            f'SWAP MISDELIVERY: {executor.WALLET} received {received} of {token_out_addr} '
+            f'but expected ~{amount_out_wei} (recipient/signer mismatch?). Aborting before supply.'
+        )
     try:
         import step_logger as _sl
         sym = _sym_for_addr(token_out_addr)
         _sl.slog('swap', f'ETH → {sym}  TX {txh[:10]}...', txhash=txh)
     except Exception:
         pass
-    log.info(f'exactOutputSingle done: {txh}')
+    log.info(f'exactOutputSingle done: {txh} (received {received} {_sym_for_addr(token_out_addr)})')
 
     # 7. Unwrap leftover WETH (best-effort — swap already confirmed, cleanup failure != swap failure)
     try:
@@ -474,7 +492,7 @@ def swap_token_to_eth(token_in_addr: str, amount_in_wei: int) -> str:
 
     # 0. Cap to actual balance — state.db amount may exceed what was received after protocol fees
     tok = w3.eth.contract(address=token_in_addr, abi=_BAL_ABI)
-    actual_balance = tok.functions.balanceOf(WALLET).call()
+    actual_balance = tok.functions.balanceOf(executor.WALLET).call()
     if actual_balance == 0:
         raise ConfigError(f'swap_token_to_eth: no {_sym_for_addr(token_in_addr)} balance')
     if actual_balance < amount_in_wei:
@@ -521,9 +539,9 @@ def swap_token_to_eth(token_in_addr: str, amount_in_wei: int) -> str:
     router = w3.eth.contract(address=Web3.to_checksum_address(router_addr), abi=router_abi)
     deadline = w3.eth.get_block('latest')['timestamp'] + 300
     if router_type == 'pancake':
-        params = (token_in_addr, WETH_ADDR, fee, WALLET, deadline, amount_in_wei, amount_out_min, 0)
+        params = (token_in_addr, WETH_ADDR, fee, executor.WALLET, deadline, amount_in_wei, amount_out_min, 0)
     else:
-        params = (token_in_addr, WETH_ADDR, fee, WALLET, amount_in_wei, amount_out_min, 0)
+        params = (token_in_addr, WETH_ADDR, fee, executor.WALLET, amount_in_wei, amount_out_min, 0)
     tx = router.functions.exactInputSingle(params).build_transaction(executor._tx_params())
     tx['gas'] = executor._gas_limit(tx)
     txh = executor._send(tx)

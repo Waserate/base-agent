@@ -106,7 +106,7 @@
 
     /* ── Grid layouts ── */
     .top-grid {
-      display: grid; grid-template-columns: 220px 260px 240px 1fr;
+      display: grid; grid-template-columns: 220px 1fr 2fr;
       gap: 12px; margin-bottom: 12px;
     }
 
@@ -395,6 +395,15 @@
       background: rgba(255,68,102,.18); border-color: var(--red);
       box-shadow: 0 0 16px rgba(255,68,102,.25);
     }
+    .btn-manual-done {
+      font-family: var(--px); font-size: 6px; letter-spacing: .04em;
+      color: #ff4466; background: rgba(255,68,102,.08);
+      border: 1px solid rgba(255,68,102,.35); border-radius: 2px;
+      padding: 3px 8px; cursor: pointer; transition: all .15s; white-space: nowrap;
+      margin-left: 4px;
+    }
+    .btn-manual-done:hover { background: rgba(255,68,102,.22); border-color: #ff4466; }
+    .btn-manual-done:disabled { opacity: .35; cursor: not-allowed; }
     .btn-withdraw-pos {
       font-family: var(--px); font-size: 6px; letter-spacing: .04em;
       color: var(--amber); background: rgba(255,204,0,.08);
@@ -726,37 +735,14 @@
   </div>
 
   <!-- AI Watcher / Incidents (right of AGENT STATUS) -->
-  <div class="panel" id="incidents-panel">
-    <div class="panel-title">
+  <div class="panel" id="incidents-panel" style="display:flex;flex-direction:column">
+    <div class="panel-title" style="display:flex;align-items:center;gap:6px">
       🛠 AI WATCHER
-      <span id="watcher-status" style="font-size:10px;padding:2px 7px;border-radius:10px;margin-left:4px;background:#333;color:#aaa">—</span>
-      <span id="incidents-count" style="font-size:11px"></span>
+      <span id="watcher-status" style="font-size:10px;padding:2px 7px;border-radius:10px;background:#333;color:#aaa">—</span>
+      <span id="remediation-mode-badge" style="font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700;background:#333;color:#aaa">…</span>
+      <span id="incidents-count" style="font-size:11px;margin-left:auto"></span>
     </div>
-    <div class="log-scroll" id="incidents-content" style="max-height:320px"><div class="action-empty">Loading…</div></div>
-  </div>
-
-  <!-- Stats (center) -->
-  <div class="panel">
-    <div class="panel-title">STATS</div>
-    <div id="stats-content">
-      <div class="stat-card">
-        <div class="stat-label">Active Positions</div>
-        <div class="stat-val green" id="stat-active">—</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Opened Today</div>
-        <div class="stat-val" id="stat-opened">—</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Opened (30d)</div>
-        <div class="stat-val" id="stat-opened30">—</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">30d Volume</div>
-        <div class="stat-val gold" id="stat-vol">—</div>
-      </div>
-    </div>
-    <div class="type-grid" id="type-counts"></div>
+    <div class="log-scroll" id="incidents-content" style="flex:1;overflow-y:auto;min-height:0"><div class="action-empty">Loading…</div></div>
   </div>
 
   <!-- Today's Plan (right) -->
@@ -854,6 +840,32 @@
   </div>
   <div class="log-terminal" id="log-terminal">
     <span style="color:var(--muted)">Loading...</span>
+  </div>
+</div>
+
+<!-- ── Stats (below Action Log) ──────────────────────── -->
+<div class="panel" style="margin-bottom:12px">
+  <div class="panel-title">STATS</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">
+    <div id="stats-content" style="display:contents">
+      <div class="stat-card">
+        <div class="stat-label">Active Positions</div>
+        <div class="stat-val green" id="stat-active">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Opened Today</div>
+        <div class="stat-val" id="stat-opened">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Opened (30d)</div>
+        <div class="stat-val" id="stat-opened30">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">30d Volume</div>
+        <div class="stat-val gold" id="stat-vol">—</div>
+      </div>
+    </div>
+    <div class="type-grid" id="type-counts" style="grid-column:1/-1"></div>
   </div>
 </div>
 
@@ -1374,7 +1386,10 @@ function _buildPositionRow(p) {
       <td class="td-usd">$${fmt(cur)}${deltaHtml}</td>
       <td class="td-days"><span class="${daysCls}">${p.days_left}d</span></td>
       <td class="td-tx"><a class="tx-link" href="${txHref}" ${txTarget}>${txLabel}</a></td>
-      <td><button class="btn-withdraw-pos" id="wbtn-${p.id}" data-pos-id="${p.id}" data-name="${(p.display_name || p.platform).replace(/"/g,'&quot;')}">⬇ WITHDRAW</button></td>
+      <td style="white-space:nowrap">
+        <button class="btn-withdraw-pos" id="wbtn-${p.id}" data-pos-id="${p.id}" data-name="${(p.display_name || p.platform).replace(/"/g,'&quot;')}">⬇ WITHDRAW</button>
+        <button class="btn-manual-done" id="dbtn-${p.id}" data-pos-id="${p.id}" data-wallet-id="${p.wallet_id || ''}" data-name="${(p.display_name || p.platform).replace(/"/g,'&quot;')}">✕ DONE</button>
+      </td>
     </tr>`, usd: cur, delta };
 }
 
@@ -1465,6 +1480,48 @@ function _renderPositionsRows(positions) {
       doWithdrawPosition(posId, name);
     });
   });
+
+  // Attach manual-done listeners
+  tbody.querySelectorAll('.btn-manual-done').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const posId    = parseInt(btn.getAttribute('data-pos-id'), 10);
+      const walletId = btn.getAttribute('data-wallet-id') || '';
+      const name     = btn.getAttribute('data-name');
+      doManualDone(posId, walletId, name, btn);
+    });
+  });
+}
+
+async function doManualDone(posId, walletId, name, btn) {
+  const confirmed = confirm(
+    `Mark position as DONE?\n\n"${name}" (ID: ${posId})\n\n` +
+    `This removes it from the DB immediately.\n` +
+    `Use only if the position is already closed on-chain.\n\n` +
+    `Press OK to confirm.`
+  );
+  if (!confirmed) return;
+  btn.disabled = true;
+  btn.textContent = '...';
+  try {
+    const r = await fetch('/api/close_position', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pos_id: posId, wallet_id: walletId }),
+    });
+    const data = await r.json();
+    if (data.ok) {
+      const row = btn.closest('tr');
+      if (row) row.remove();
+    } else {
+      alert('Error: ' + (data.error || 'unknown'));
+      btn.disabled = false;
+      btn.textContent = '✕ DONE';
+    }
+  } catch (e) {
+    alert('Request failed: ' + e);
+    btn.disabled = false;
+    btn.textContent = '✕ DONE';
+  }
 }
 
 function renderPositions(data) {
@@ -1621,6 +1678,20 @@ function renderIncidents(data) {
   chip.style.background = st[1];
   chip.style.color = st[2];
 
+  const modeBadge = document.getElementById('remediation-mode-badge');
+  if (modeBadge) {
+    const mode = data.remediation_mode || 'diagnose';
+    if (mode === 'live') {
+      modeBadge.textContent = '⚡ LIVE';
+      modeBadge.style.background = '#0a3';
+      modeBadge.style.color = '#bdf7c6';
+    } else {
+      modeBadge.textContent = '🔍 DIAGNOSE';
+      modeBadge.style.background = '#333';
+      modeBadge.style.color = '#aaa';
+    }
+  }
+
   const incs = data.incidents || [];
   count.textContent = data.open_count ? `(${data.open_count} open)` : '';
 
@@ -1634,8 +1705,10 @@ function renderIncidents(data) {
     detected:       ['DETECTED',     '#555', '#ccc'],
     investigating:  ['🔧 DIAGNOSING','#066', '#bff'],
     diagnosed:      ['🔎 DIAGNOSED', '#234', '#9cf'],
+    remediating:    ['🔧 FIXING',    '#063', '#9fc'],
     resolved:       ['✅ RESOLVED',  '#0a3', '#bdf7c6'],
     needs_approval: ['🟡 APPROVE',   '#660', '#fe9'],
+    needs_manual:   ['🙋 NEEDS YOU', '#550', '#fd9'],
     alert:          ['🚨 ALERT',     '#600', '#f99'],
   };
   const catBadge = {
@@ -1660,16 +1733,40 @@ function renderIncidents(data) {
       const fixable = p.auto_fixable
         ? `<span style="color:#0d8;font-size:10px"> ⚡auto-fixable</span>`
         : `<span style="color:#888;font-size:10px"> needs you</span>`;
+
+      // Phase 3: code-fix patch diff + approve/reject buttons
+      let patchSection = '';
+      if (i.status === 'needs_approval' && p.patch_diff && p.patch_diff !== '(no changes)') {
+        const escDiff = p.patch_diff.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        patchSection = `
+        <div style="margin-top:6px">
+          <div style="font-size:10px;color:#8af;margin-bottom:3px">📄 Patch — ${(p.patch_files||[]).join(', ')||'?'}</div>
+          <pre style="font-size:9px;color:#b9d;background:#070e18;padding:6px;border-radius:3px;overflow-x:auto;max-height:200px;margin:0">${escDiff}</pre>
+          <div style="margin-top:5px;display:flex;gap:6px">
+            <button onclick="doFixApprove('${i.id}')" style="font-size:11px;padding:3px 10px;background:#0a4;color:#fff;border:none;border-radius:4px;cursor:pointer">✅ Approve</button>
+            <button onclick="doFixReject('${i.id}')"  style="font-size:11px;padding:3px 10px;background:#600;color:#fff;border:none;border-radius:4px;cursor:pointer">✕ Reject</button>
+          </div>
+        </div>`;
+      }
+
       diag = `<div style="margin-top:5px;padding:6px 8px;background:#0d1420;border-left:2px solid #58f;border-radius:3px">
         <span style="font-size:9px;padding:1px 5px;border-radius:6px;background:${cb[1]};color:#cde">${cb[0]}${conf}</span>${fixable}
         <div style="font-size:11px;color:#cdd;margin-top:3px">${p.root_cause||''}</div>
         ${p.proposed_action ? `<div style="font-size:11px;color:#8c9;margin-top:3px">▶ ${p.proposed_action}</div>` : ''}
+        ${patchSection}
       </div>`;
     }
 
-    return `<div class="action-entry">
+    const dismissBtn = (['needs_manual','diagnosed','detected'].includes(i.status))
+      ? `<button onclick="doIncidentDismiss('${i.id}', this)"
+           style="font-size:10px;padding:2px 8px;margin-left:6px;background:#333;color:#fd9;border:1px solid #664;border-radius:4px;cursor:pointer">
+           ✓ DISMISS</button>`
+      : '';
+
+    return `<div class="action-entry" id="inc-${i.id}">
       <span style="color:${dot};font-size:14px;line-height:1">●</span>
       <span style="font-size:10px;padding:1px 6px;border-radius:8px;background:${sb[1]};color:${sb[2]};white-space:nowrap">${sb[0]}</span>
+      ${dismissBtn}
       <div class="action-body">
         <div class="action-platform">${i.title || i.signal}${recur}${cnt}</div>
         <div class="action-detail">${(i.detail || '').slice(0,160)}</div>
@@ -1680,6 +1777,32 @@ function renderIncidents(data) {
   }).join('');
 }
 
+async function doIncidentDismiss(incId, btn) {
+  if (!confirm('Dismiss this incident?\n\nThis marks it resolved — use only if no action is needed.')) return;
+  btn.disabled = true;
+  btn.textContent = '...';
+  try {
+    const r = await fetch('/api/incident_dismiss', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ incident_id: incId }),
+    });
+    const data = await r.json();
+    if (data.ok) {
+      const el = document.getElementById('inc-' + incId);
+      if (el) el.remove();
+    } else {
+      alert('Error: ' + (data.error || 'unknown'));
+      btn.disabled = false;
+      btn.textContent = '✓ DISMISS';
+    }
+  } catch (e) {
+    alert('Request failed: ' + e);
+    btn.disabled = false;
+    btn.textContent = '✓ DISMISS';
+  }
+}
+
 async function loadIncidents() {
   try {
     const data = await fetch('/api/incidents').then(r => r.json());
@@ -1687,6 +1810,40 @@ async function loadIncidents() {
   } catch (e) {
     document.getElementById('incidents-content').innerHTML =
       '<div class="action-empty" style="color:var(--red)">Watcher load error</div>';
+  }
+}
+
+async function doFixApprove(incidentId) {
+  if (!confirm('Apply this patch to the live repo? The agent will need to be restarted manually.')) return;
+  try {
+    const r = await fetch('/api/fix_approve', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({incident_id: incidentId}),
+    }).then(r => r.json());
+    if (r.ok) {
+      alert('Patch applied: ' + (r.files||[]).join(', ') + '\nRestart the agent (start.bat) for changes to take effect.');
+      loadIncidents();
+    } else {
+      alert('Approve failed: ' + (r.error || JSON.stringify(r)));
+    }
+  } catch (e) {
+    alert('Request error: ' + e);
+  }
+}
+
+async function doFixReject(incidentId) {
+  if (!confirm('Reject this patch? The worktree will be removed.')) return;
+  try {
+    const r = await fetch('/api/fix_reject', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({incident_id: incidentId}),
+    }).then(r => r.json());
+    if (r.ok) { loadIncidents(); }
+    else { alert('Reject failed: ' + (r.error || JSON.stringify(r))); }
+  } catch (e) {
+    alert('Request error: ' + e);
   }
 }
 

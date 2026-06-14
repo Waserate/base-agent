@@ -132,6 +132,69 @@ Agent currently executes one wallet at a time. Multi-wallet parallel execution i
 
 ## Changelog
 
+### 2026-06-09
+
+#### AI Watcher Phase 2b — Live Auto-Remediation
+
+After Sonnet diagnoses an incident (Phase 2a), Phase 2b can automatically run recovery scripts — no human click needed.
+
+**How it works:**
+- `REMEDIATION_MODE=live` (set in `start.bat` for the watcher window) activates live remediation
+- After diagnosis: if `category=state_drift` AND `auto_fixable=true` AND `confidence>=medium` → watcher immediately runs a deterministic recovery command
+- Recovery commands are a hard whitelist — no second AI call, no creative actions: only `withdraw_all`, `reconcile`, or `sweep_tokens`
+- Bounded to `MAX_REMEDIATION_ACTIONS=3` per incident; all actions logged to incident store and shown on dashboard
+
+**Ghost position proactive scan:** watcher now checks every active DB row against on-chain balance on every poll cycle. If on-chain balance is 0 for a position that DB says is active, it creates a `withdraw_failed` incident immediately — no need to wait for the bot to fail at withdrawal. Covered platform types: erc4626, ctoken, beefy_single, beefy_lp, uni_lp, pancake_lp, aero_lp (checks gauge balance), aero_vote (checks `locked()` struct).
+
+**Cross-DB cleanup (watcher):** every poll cycle runs two passes — (1) if a position is closed in any wallet's DB, close the matching row (same platform+entry_date) in all other DBs to prevent ghost-retry loops; (2) delete closed rows with expiry older than `POSITION_CLEANUP_DAYS` (default 7).
+
+**Manual withdraw loop guard:** watcher now checks if a `manual_withdraw_*.json` entry's position is already closed in DB before re-flagging — prevents the same stuck-withdraw from generating repeated incidents after the user manually closed it.
+
+**Sonnet auto-resolve:** if diagnosis category is `external` or `unknown` but root cause text contains self-resolved/already-resolved keywords (e.g. bot successfully repicked), the incident is auto-resolved without user action.
+
+#### AI Watcher Phase 3 — Code-Fix Agent + Dashboard Approve/Reject
+
+When the watcher diagnoses `category=code_bug`, Phase 3 queues a Sonnet-powered code-fix agent to patch the code automatically — with a mandatory human review gate before anything touches the live codebase.
+
+**`code_fix_agent.py` (new file):**
+- Creates a git worktree at `cache/fix-{incident_id}/` (isolated copy of the repo — Sonnet cannot touch the live files)
+- Runs Sonnet inside the worktree with tools: Read, Grep, Glob, Edit, Write, Bash (restricted to `py_compile` only — no TX scripts, no fund-touching)
+- `permission_mode=bypassPermissions` — required because headless Claude Agent SDK has no TTY and the default mode auto-denies Edit/Write
+- After edit: runs `py_compile.compile()` to verify syntax
+- Computes `git diff` of the worktree vs HEAD, stores it in `incident.proposal.patch_diff`
+- Sets incident status to `needs_approval`
+
+**Dashboard Approve/Reject UI:**
+- Incident card shows a syntax-highlighted diff `<pre>` block when `status=needs_approval`
+- **✅ Approve** button → `POST /api/fix_approve` → `code_fix_agent.apply_fix()` — copies changed files from worktree to live repo (creates `.bak` backup), removes worktree, marks incident resolved
+- **✕ Reject** button → `POST /api/fix_reject` → `code_fix_agent.reject_fix()` — removes worktree, marks incident dismissed
+- **✓ DISMISS** button — appears on `needs_manual` incidents; marks resolved without running any fix
+
+**Bot short-circuit (deterministic revert detection):**
+- Every `_action_log(..., step='fail')` call now passes the full exception string to `_check_deterministic_revert()`
+- Extracts 4-byte selector (pattern `0x[0-9a-f]{8}`) from the error; counts per-platform in `cache/revert_counts.json`
+- If same selector seen ≥ 2 times on same platform → fires a `deterministic_revert` incident → platform is immediately excluded from candidate selection in both `daily_job` and `_the_rule_repick` until the incident is resolved
+- Prevents the bot from repeatedly wasting gas on a platform that will always revert (e.g. ABI changed, reserve frozen, wrong address)
+
+**Other fixes (2026-06-09):**
+- `state.py` `close_position()` now cross-syncs to all other `state*.db` files — if you close a position in wallet A's DB, the same platform+entry_date row is also closed in wallet B's DB
+- `state.py` `DB_PATH` no longer hardcodes `state.db` — resolves via `wallet_manager.get_last_active()` so the module works correctly when called from scripts that haven't set `STATE_DB_PATH`
+- `serve_dashboard.py` `/api/close_position` — new endpoint to manually mark any DB row as closed (useful when AI watcher needs to resolve a ghost without running on-chain TX)
+- `serve_dashboard.py` `/api/incident_dismiss` — mark any open incident resolved directly from dashboard
+- `serve_dashboard.py` `aero_lp` USD display — reads on-chain gauge `balanceOf` instead of stored `amount_wei` (stored value was ETH budget, not LP token wei — was causing wrong USD display)
+- `watcher.py` now calls `load_dotenv()` at startup so `REMEDIATION_MODE` in `.env` is respected when watcher is launched directly (not via `start.bat`)
+- `start.bat` sets `REMEDIATION_MODE=live` in the watcher window — Phase 2b+3 active by default on launch
+
+#### To activate Phase 2b+3
+
+No code changes needed. Set in `.env` or `start.bat`:
+```
+REMEDIATION_MODE=live
+```
+Default (`diagnose`) keeps Phase 2a (read-only diagnosis). `live` adds auto-remediation + code-fix dispatch.
+
+---
+
 ### 2026-06-06
 - **start.bat**: launcher script — opens Agent CMD + Dashboard + browser in one click
 - **start.bat**: kill only Base Agent/Dashboard windows, not all Python processes
